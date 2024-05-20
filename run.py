@@ -45,18 +45,12 @@ class GameController(object):
         self.max_simulations = 5000
         self.last_action = None
         self.last_state = None
-
-    def setBackground(self):
-        self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
-        self.background_norm.fill(BLACK)
-        self.background_flash = pygame.surface.Surface(SCREENSIZE).convert()
-        self.background_flash.fill(BLACK)
-        self.background_norm = self.mazesprites.constructBackground(self.background_norm, self.level % 5)
-        self.background_flash = self.mazesprites.constructBackground(self.background_flash, 5)
-        self.flashBG = False
-        self.background = self.background_norm
+        self.grid = None
+        self.initial_grid = None
+        self.initial_pellet_positions = set()
 
     def startGame(self):
+        print('Starting game')
         self.mazedata.loadMaze(self.level)
         self.mazesprites = MazeSprites(self.mazedata.obj.name + ".txt", self.mazedata.obj.name + "_rotation.txt")
         self.setBackground()
@@ -79,6 +73,29 @@ class GameController(object):
         self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
 
+        # Load and initialize grid from the maze file
+        if not self.load_and_initialize_grid(self.mazedata.obj.name + ".txt"):
+            print("Failed to initialize grid.")
+            return
+
+        # Store initial pellet positions
+        for pellet in self.pellets.pelletList:
+            plx, ply = int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)
+            self.initial_pellet_positions.add((plx, ply))
+
+        self.update_grid()
+        self.print_grid()
+
+    def setBackground(self):
+        self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
+        self.background_norm.fill(BLACK)
+        self.background_flash = pygame.surface.Surface(SCREENSIZE).convert()
+        self.background_flash.fill(BLACK)
+        self.background_norm = self.mazesprites.constructBackground(self.background_norm, self.level % 5)
+        self.background_flash = self.mazesprites.constructBackground(self.background_flash, 5)
+        self.flashBG = False
+        self.background = self.background_norm
+
     def resetGame(self):
         self.level = 0
         self.lives = 5
@@ -92,6 +109,8 @@ class GameController(object):
         self.showEntities()
 
     def update(self):
+        self.update_grid()
+        self.print_grid()
         self.agent.save_policy('q_learning_policy.pkl')
         if self.simulation_count >= self.max_simulations:
             print('Policy Saved')
@@ -153,7 +172,7 @@ class GameController(object):
             afterPauseMethod()
         self.pre_score = self.score  # Save previous score
         self.checkEvents()
-        # self.render()
+        self.render()
 
         # Print the state vector
         state_vector = self.get_node_state_vector()
@@ -320,6 +339,69 @@ class GameController(object):
             self.screen.blit(self.fruitCaptured[i], (x, y))
 
         pygame.display.update()
+    
+    def load_and_initialize_grid(self, filename):
+        """Load the maze from a text file and initialize the grid."""
+        with open(filename, 'r') as file:
+            content = file.read()
+        
+        translation_table = str.maketrans({
+            'X': 'x', '0': 'x', '1': 'x', '2': 'x', '3': 'x',
+            '4': 'x', '5': 'x', '6': 'x', '7': 'x', '8': 'x',
+            '9': 'x', '=': 'x', 'n': '/', '-': '/', 'l': '/',
+            '.': '.', '+': '.', 'p': 'o','|':'/'
+        })
+        
+        self.transformed_text = content.translate(translation_table)
+        
+        # Create the grid, keeping the spaces intact
+        self.grid = [list(line.replace(' ', '')) for line in self.transformed_text.split('\n')]
+        self.initial_grid = [row[:] for row in self.grid]  # Save initial grid state
+        print(self.transformed_text)
+        return True
+
+    def print_grid(self):
+        """Print the current state of the grid."""
+        for row in self.grid:
+            print("".join(row))
+
+    def update_grid(self):
+        """Update the grid with the current state of the maze."""
+        # Reset the grid to its initial state
+        self.grid = [row[:] for row in self.initial_grid]  # Reset grid to initial state
+
+        # Update pellet positions
+        current_pellet_positions = {(int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)) for pellet in self.pellets.pelletList}
+
+        eaten_pellets = self.initial_pellet_positions - current_pellet_positions
+        for (plx, ply) in eaten_pellets:
+            self.grid[ply][plx] = "/"
+
+        for pellet in self.pellets.pelletList:
+            plx, ply = int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)
+            if pellet.visible:
+                self.grid[ply][plx] = "o" if pellet.name == "POWERPELLET" else "."
+            else:
+                self.grid[ply][plx] = "/"
+
+        # Update fruit position
+        if self.fruit is not None:
+            fx, fy = int(self.fruit.position.x // TILEWIDTH), int(self.fruit.position.y // TILEHEIGHT)
+            self.grid[fy][fx] = "F"
+
+        # Update ghost positions
+        for ghost in self.ghosts:
+            gx, gy = int(ghost.position.x // TILEWIDTH), int(ghost.position.y // TILEHEIGHT)
+            if ghost.mode.current == FREIGHT:
+                self.grid[gy][gx] = "f"  # Ghosts in frightened mode
+            elif ghost.mode.current == SPAWN:
+                self.grid[gy][gx] = "s"  # Ghosts returning to the spawn point
+            else:
+                self.grid[gy][gx] = "G"  # Normal mode
+
+        # Update Pac-Man position
+        px, py = int(self.pacman.position.x // TILEWIDTH), int(self.pacman.position.y // TILEHEIGHT)
+        self.grid[py][px] = "P"
 
 
 if __name__ == "__main__":

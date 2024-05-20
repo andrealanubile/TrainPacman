@@ -30,26 +30,26 @@ class QLearningAgent:
         
         # Print Q-learning update step details
         # print(f"State: {state}")
-        print(f"Action: {action} (index: {action_index})")
-        print(f"Reward: {reward}")
+        # print(f"Action: {action} (index: {action_index})")
+        # print(f"Reward: {reward}")
         # print(f"Next State: {next_state}")
-        print(f"TD Target: {td_target}")
-        print(f"TD Error: {td_error}")
-        print(f"Old Q-value: {self.q_table[state][action_index]}")
+        # print(f"TD Target: {td_target}")
+        # print(f"TD Error: {td_error}")
+        # print(f"Old Q-value: {self.q_table[state][action_index]}")
         
         self.q_table[state][action_index] += self.lr * td_error
 
         # Print the updated Q-value
-        print(f"Updated Q-value: {self.q_table[state][action_index]}\n")
+        # print(f"Updated Q-value: {self.q_table[state][action_index]}\n")
 
         self.epsilon *= self.epsilon_decay  # Decay exploration rate
 
     def save_policy(self, file_path):
-        print(f"Saving Q-table with {len(self.q_table)} entries.")
+        # print(f"Saving Q-table with {len(self.q_table)} entries.")
         with open(file_path, 'wb') as file:
             pickle.dump(dict(self.q_table), file)
 
     def load_policy(self, file_path):
         with open(file_path, 'rb') as file:
             self.q_table = defaultdict(lambda: np.zeros(len(self.action_space)), pickle.load(file))
-        print(f"Loaded Q-table with {len(self.q_table)} entries.")
+        # print(f"Loaded Q-table with {len(self.q_table)} entries.")
