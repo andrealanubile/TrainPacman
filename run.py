@@ -3,6 +3,7 @@ import pygame
 from pygame.locals import *
 import random
 import numpy as np
+import copy
 from collections import defaultdict
 from constants import *
 from pacman import Pacman
@@ -84,7 +85,7 @@ class GameController(object):
             self.initial_pellet_positions.add((plx, ply))
 
         self.update_grid()
-        self.print_grid()
+        # self.print_grid()
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -110,7 +111,7 @@ class GameController(object):
 
     def update(self):
         self.update_grid()
-        self.print_grid()
+        # self.print_grid()
         self.agent.save_policy('q_learning_policy.pkl')
         if self.simulation_count >= self.max_simulations:
             print('Policy Saved')
@@ -132,14 +133,14 @@ class GameController(object):
         if self.pacman.alive:
             if not self.pause.paused:
                 # Get current state
-                state = tuple(self.get_node_state_vector())
+                state = self.grid_to_state()
                 self.last_state = state
                 # Agent chooses action
                 action = self.agent.choose_action(state)
                 self.last_action = action
                 self.pacman.update(dt, action)
                 # Get new state and reward
-                new_state = tuple(self.get_node_state_vector())
+                new_state = self.grid_to_state()
                 reward = self.get_reward()
                 # print(f"Action: {action}, Reward: {reward}, Score: {self.score}")
                 # Update Q-values
@@ -147,7 +148,7 @@ class GameController(object):
         else:
             self.pacman.update(dt,self.last_action)
             reward = self.get_reward()
-            new_state = tuple(self.get_node_state_vector())
+            new_state = self.grid_to_state()
             self.agent.update_q_values(self.last_state, self.last_action, reward, new_state)
             if self.lives <= 0:
                 self.simulation_count += 1
@@ -170,28 +171,13 @@ class GameController(object):
         afterPauseMethod = self.pause.update(dt)
         if afterPauseMethod is not None:
             afterPauseMethod()
-        self.pre_score = self.score  # Save previous score
+        self.pre_score = copy.copy(self.score) # Save previous score
         self.checkEvents()
         self.render()
 
-        # Print the state vector
-        state_vector = self.get_node_state_vector()
-
-    def get_node_state_vector(self):
-        """Generate a vector representing the state of each node in the maze."""
-        state_vector = []
-        for position, node in self.nodes.nodesLUT.items():
-            state = "Empty"
-            if self.pacman.position == node.position:
-                state = "Pacman"
-            elif any(ghost.position == node.position for ghost in self.ghosts):
-                state = "Ghost"
-            elif any(pellet.position == node.position for pellet in self.pellets.pelletList):
-                state = "Pellet"
-            elif self.fruit is not None and self.fruit.position == node.position:
-                state = "Fruit"
-            state_vector.append(state)
-        return state_vector
+    def grid_to_state(self):
+        """Convert the grid to a state representation for Q-learning."""
+        return tuple([cell for row in self.grid for cell in row])
 
     def get_reward(self):
         """Calculate the reward based on the game state."""
@@ -357,7 +343,6 @@ class GameController(object):
         # Create the grid, keeping the spaces intact
         self.grid = [list(line.replace(' ', '')) for line in self.transformed_text.split('\n')]
         self.initial_grid = [row[:] for row in self.grid]  # Save initial grid state
-        print(self.transformed_text)
         return True
 
     def print_grid(self):

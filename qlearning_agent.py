@@ -30,17 +30,19 @@ class QLearningAgent:
         
         # Print Q-learning update step details
         # print(f"State: {state}")
-        # print(f"Action: {action} (index: {action_index})")
-        # print(f"Reward: {reward}")
-        # print(f"Next State: {next_state}")
-        # print(f"TD Target: {td_target}")
-        # print(f"TD Error: {td_error}")
-        # print(f"Old Q-value: {self.q_table[state][action_index]}")
+        if reward != 0:
+            print(f"Action: {action} (index: {action_index})")
+            print(f"Reward: {reward}")
+            # print(f"Next State: {next_state}")
+            print(f"TD Target: {td_target}")
+            print(f"TD Error: {td_error}")
+            print(f"Old Q-value: {self.q_table[state][action_index]}")
         
         self.q_table[state][action_index] += self.lr * td_error
 
         # Print the updated Q-value
-        # print(f"Updated Q-value: {self.q_table[state][action_index]}\n")
+        if reward != 0:
+            print(f"Updated Q-value: {self.q_table[state][action_index]}\n")
 
         self.epsilon *= self.epsilon_decay  # Decay exploration rate
 
@@ -52,4 +54,4 @@ class QLearningAgent:
     def load_policy(self, file_path):
         with open(file_path, 'rb') as file:
             self.q_table = defaultdict(lambda: np.zeros(len(self.action_space)), pickle.load(file))
-        # print(f"Loaded Q-table with {len(self.q_table)} entries.")
+        print(f"Loaded Q-table with {len(self.q_table)} entries.")
