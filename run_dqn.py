@@ -1,5 +1,4 @@
 import sys
-import copy
 import pygame
 from pygame.locals import *
 import numpy as np
@@ -44,7 +43,7 @@ class GameController(object):
         self.action_space = 4  # UP, DOWN, LEFT, RIGHT
         self.agent = DQNAgent(self.state_space, self.action_space)
         self.simulation_count = 0
-        self.max_simulations = 10000
+        self.max_simulations = 5000
         self.last_action = None
         self.last_state = None
         self.grid = None
@@ -118,7 +117,7 @@ class GameController(object):
             sys.exit()
             return
 
-        dt = self.clock.tick(60) / 1000.0  # Update frame rate for faster updates
+        dt = self.clock.tick(1000) / 100.0  # Update frame rate for faster updates
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -143,13 +142,13 @@ class GameController(object):
                 reward = self.get_reward()
                 # Update Q-values
                 self.agent.remember(state, action, reward, new_state, not self.pacman.alive)
-                self.agent.experience_replay(64)  # Batch size for replay
+                self.agent.experience_replay(64)
         else:
             self.pacman.update(dt, self.last_action)
             reward = self.get_reward()
             new_state = self.grid_to_state()
             self.agent.remember(self.last_state, self.last_action, reward, new_state, not self.pacman.alive)
-            self.agent.experience_replay(64)  # Batch size for replay
+            self.agent.experience_replay(64)
             if self.lives <= 0:
                 self.simulation_count += 1
                 print_progress_bar(self.simulation_count, self.max_simulations, prefix='Progress:', suffix='Complete', length=50)  # Update the progress bar
@@ -176,30 +175,7 @@ class GameController(object):
 
     def grid_to_state(self):
         """Convert the grid to a state representation for Q-learning."""
-        state = []
-        for row in self.grid:
-            for cell in row:
-                if cell == 'x':  # Wall
-                    state.append(0)
-                elif cell == '.':  # Pellet
-                    state.append(1)
-                elif cell == 'o':  # Power Pellet
-                    state.append(2)
-                elif cell == '/':  # Eaten Pellet
-                    state.append(3)
-                elif cell == 'P':  # Pac-Man
-                    state.append(4)
-                elif cell == 'G':  # Ghost
-                    state.append(5)
-                elif cell == 'f':  # Frightened Ghost
-                    state.append(6)
-                elif cell == 's':  # Ghost returning to spawn
-                    state.append(7)
-                elif cell == 'F':  # Fruit
-                    state.append(8)
-                else:
-                    state.append(9)  # Empty or other
-        return np.array(state)
+        return np.array([ord(cell) for row in self.grid for cell in row], dtype=np.float32) / 255.0
 
     def get_reward(self):
         """Calculate the reward based on the game state."""
