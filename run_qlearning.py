@@ -43,7 +43,7 @@ class GameController(object):
         self.mazedata = MazeData()
         self.agent = QLearningAgent(action_space=['UP', 'DOWN', 'LEFT', 'RIGHT'])  # Initialize the agent
         self.simulation_count = 0
-        self.max_simulations = 5000
+        self.max_simulations = 10000
         self.last_action = None
         self.last_state = None
         self.grid = None
@@ -112,14 +112,14 @@ class GameController(object):
     def update(self):
         self.update_grid()
         # self.print_grid()
-        self.agent.save_policy('q_learning_policy.pkl')
         if self.simulation_count >= self.max_simulations:
+            self.agent.save_policy('q_learning_policy.pkl')
             print('Policy Saved')
             pygame.quit()
             sys.exit()
             return
 
-        dt = self.clock.tick(30) / 1000.0
+        dt = self.clock.tick(1000) / 100
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -137,6 +137,7 @@ class GameController(object):
                 self.last_state = state
                 # Agent chooses action
                 action = self.agent.choose_action(state)
+                print(action)
                 self.last_action = action
                 self.pacman.update(dt, action)
                 # Get new state and reward
@@ -281,17 +282,18 @@ class GameController(object):
         self.textgroup.updateLevel(self.level)
 
     def restartGame(self):
-        self.lives = 5
         self.level = 0
-        self.pause.paused = False
-        self.fruit = None
-        self.startGame()
+        self.lives = 5
         self.score = 0
+        self.pre_score = 0  # Reset previous score
         self.textgroup.updateScore(self.score)
         self.textgroup.updateLevel(self.level)
-        self.textgroup.showText(READYTXT)
         self.lifesprites.resetLives(self.lives)
         self.fruitCaptured = []
+        self.startGame()
+        self.showEntities()
+        self.agent.epsilon = max(self.agent.epsilon*self.agent.epsilon_decay,self.agent.min_exploration_rate)  # Decrease exploration rate after each game
+        print(self.agent.epsilon)
 
     def resetLevel(self):
         self.pause.paused = False
@@ -394,3 +396,5 @@ if __name__ == "__main__":
     game.startGame()
     while True:
         game.update()
+
+    

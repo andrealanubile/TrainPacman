@@ -5,7 +5,7 @@ import pickle
 import gzip
 
 class QLearningAgent:
-    def __init__(self, action_space, learning_rate=0.5, discount_factor=0.9, exploration_rate=1.0, exploration_decay=0.999):
+    def __init__(self, action_space, learning_rate=0.5, discount_factor=0.9, exploration_rate=1, exploration_decay=0.99, min_exploration_rate = 0.05):
         self.action_space = action_space
         self.action_mapping = {i: action for i, action in enumerate(action_space)}
         self.reverse_action_mapping = {action: i for i, action in enumerate(action_space)}
@@ -13,6 +13,7 @@ class QLearningAgent:
         self.gamma = discount_factor
         self.epsilon = exploration_rate
         self.epsilon_decay = exploration_decay
+        self.min_exploration_rate = min_exploration_rate
         self.q_table = defaultdict(lambda: np.zeros(len(action_space)))
 
     def choose_action(self, state):
@@ -30,24 +31,24 @@ class QLearningAgent:
         
         # Print Q-learning update step details
         # print(f"State: {state}")
-        if reward != 0:
-            print(f"Action: {action} (index: {action_index})")
-            print(f"Reward: {reward}")
+        # if reward != 0:
+            # print(f"Action: {action} (index: {action_index})")
+            # print(f"Reward: {reward}")
             # print(f"Next State: {next_state}")
-            print(f"TD Target: {td_target}")
-            print(f"TD Error: {td_error}")
-            print(f"Old Q-value: {self.q_table[state][action_index]}")
+            # print(f"TD Target: {td_target}")
+            # print(f"TD Error: {td_error}")
+            # print(f"Old Q-value: {self.q_table[state][action_index]}")
         
         self.q_table[state][action_index] += self.lr * td_error
 
         # Print the updated Q-value
-        if reward != 0:
-            print(f"Updated Q-value: {self.q_table[state][action_index]}\n")
+        # if reward != 0:
+            # print(f"Updated Q-value: {self.q_table[state][action_index]}\n")
 
-        self.epsilon *= self.epsilon_decay  # Decay exploration rate
+        # self.epsilon *= self.epsilon_decay  # Decay exploration rate
 
     def save_policy(self, file_path):
-        # print(f"Saving Q-table with {len(self.q_table)} entries.")
+        print(f"Saving Q-table with {len(self.q_table)} entries.")
         with open(file_path, 'wb') as file:
             pickle.dump(dict(self.q_table), file)
 

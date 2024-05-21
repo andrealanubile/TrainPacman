@@ -101,7 +101,7 @@ class GameController(object):
         self.showEntities()
 
     def update(self):
-        dt = self.clock.tick(30) / 1000.0
+        dt = self.clock.tick(1000) / 100.0
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
