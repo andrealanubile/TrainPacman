@@ -1,4 +1,6 @@
 import sys
+import copy
+import csv
 import pygame
 from pygame.locals import *
 import numpy as np
@@ -39,15 +41,17 @@ class GameController(object):
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
-        self.state_space = 28 * 36  # assuming grid size
+        self.state_space = (1, 36, 28)  # assuming grid size (channels, height, width)
         self.action_space = 4  # UP, DOWN, LEFT, RIGHT
         self.agent = DQNAgent(self.state_space, self.action_space)
         self.simulation_count = 0
-        self.max_simulations = 5000
+        self.max_simulations = 1000
         self.last_action = None
         self.last_state = None
         self.grid = None
         self.initial_pellet_positions = set()
+
+        self.final_scores = []
 
     def startGame(self):
         print('Starting game')
@@ -108,16 +112,19 @@ class GameController(object):
         self.startGame()
         self.showEntities()
 
+
     def update(self):
         self.update_grid()
         # self.print_grid()
         if self.simulation_count >= self.max_simulations:
+            self.agent.save_model('dqn_model.pth')
             print('Policy Saved')
+            self.save_scores_to_csv()
             pygame.quit()
             sys.exit()
             return
 
-        dt = self.clock.tick(1000) / 100.0  # Update frame rate for faster updates
+        dt = self.clock.tick(1000) / 800.0  # Update frame rate for faster updates
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -140,17 +147,21 @@ class GameController(object):
                 # Get new state and reward
                 new_state = self.grid_to_state()
                 reward = self.get_reward()
-                # Update Q-values
-                self.agent.remember(state, action, reward, new_state, not self.pacman.alive)
-                self.agent.experience_replay(64)
+                done = not self.pacman.alive
+                # Store the experience in replay memory
+                self.agent.remember(self.last_state, self.last_action, reward, new_state, done)
+                # Train the agent with the experience
+                self.agent.experience_replay(128)
         else:
             self.pacman.update(dt, self.last_action)
             reward = self.get_reward()
             new_state = self.grid_to_state()
-            self.agent.remember(self.last_state, self.last_action, reward, new_state, not self.pacman.alive)
+            done = not self.pacman.alive
+            self.agent.remember(self.last_state, self.last_action, reward, new_state, done)
             self.agent.experience_replay(64)
             if self.lives <= 0:
                 self.simulation_count += 1
+                self.final_scores.append(self.score)
                 print_progress_bar(self.simulation_count, self.max_simulations, prefix='Progress:', suffix='Complete', length=50)  # Update the progress bar
                 self.resetGame()
             else:
@@ -173,9 +184,13 @@ class GameController(object):
         self.checkEvents()
         self.render()
 
+
     def grid_to_state(self):
         """Convert the grid to a state representation for Q-learning."""
-        return np.array([ord(cell) for row in self.grid for cell in row], dtype=np.float32) / 255.0
+        mapping = {'x': -1.0/10, '.': 0.0/10, 'P': 1.0/10, 'G': 2.0/10, '/': -0.5/10, 's': 3.0/10, 'f' : 4.0/10, 'F' : 5.0/10}
+        state = [[mapping[cell] for cell in row] for row in self.grid]
+        return np.array(state, dtype=np.float32).reshape(1, 36, 28)
+
 
     def get_reward(self):
         """Calculate the reward based on the game state."""
@@ -279,6 +294,7 @@ class GameController(object):
         self.textgroup.updateLevel(self.level)
 
     def restartGame(self):
+        self.save_scores_to_csv()
         self.level = 0
         self.lives = 5
         self.score = 0
@@ -291,6 +307,7 @@ class GameController(object):
         self.showEntities()
         self.agent.exploration_rate = max(self.agent.exploration_rate * self.agent.exploration_decay, self.agent.exploration_min)  # Decrease exploration rate after each game
         print(self.agent.exploration_rate)
+        self.agent.update_target_model()
 
     def resetLevel(self):
         self.pause.paused = False
@@ -340,7 +357,7 @@ class GameController(object):
         self.transformed_text = content.translate(translation_table)
         
         # Create the grid, keeping the spaces intact
-        self.grid = [list(line.replace(' ', '')) for line in self.transformed_text.split('\n')]
+        self.grid = [list(line.replace(' ', '')) for line in self.transformed_text.split('\n') if line.strip()]
         self.initial_grid = [row[:] for row in self.grid]  # Save initial grid state
         return True
 
@@ -348,6 +365,16 @@ class GameController(object):
         """Print the current state of the grid."""
         for row in self.grid:
             print("".join(row))
+
+    def print_state(self):
+        """Print the current state of the grid and the converted state."""
+        print("Current Grid State:")
+        for row in self.grid:
+            print("".join(row))
+        state = self.grid_to_state()
+        print("Converted State:")
+        print(state)
+        print("\n")
 
     def update_grid(self):
         """Update the grid with the current state of the maze."""
@@ -387,6 +414,13 @@ class GameController(object):
         px, py = int(self.pacman.position.x // TILEWIDTH), int(self.pacman.position.y // TILEHEIGHT)
         self.grid[py][px] = "P"
 
+    def save_scores_to_csv(self):
+        """Save the final scores to a CSV file."""
+        with open('final_scores.csv', 'w', newline='') as csvfile:
+            score_writer = csv.writer(csvfile)
+            score_writer.writerow(['Episode', 'Score'])
+            for i, score in enumerate(self.final_scores):
+                score_writer.writerow([i+1, score])
 
 if __name__ == "__main__":
     game = GameController()
