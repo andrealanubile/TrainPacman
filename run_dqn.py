@@ -50,6 +50,7 @@ class GameController(object):
         self.last_state = None
         self.grid = None
         self.initial_pellet_positions = set()
+        self.counter_target = 0
 
         self.final_scores = []
 
@@ -140,6 +141,7 @@ class GameController(object):
                 # Get current state
                 state = self.grid_to_state()
                 self.last_state = state
+                # self.print_state()
                 # Agent chooses action
                 action = self.agent.choose_action(state)
                 self.last_action = action
@@ -147,6 +149,7 @@ class GameController(object):
                 # Get new state and reward
                 new_state = self.grid_to_state()
                 reward = self.get_reward()
+                # print(reward)
                 done = not self.pacman.alive
                 # Store the experience in replay memory
                 self.agent.remember(self.last_state, self.last_action, reward, new_state, done)
@@ -155,10 +158,11 @@ class GameController(object):
         else:
             self.pacman.update(dt, self.last_action)
             reward = self.get_reward()
+            print(reward)
             new_state = self.grid_to_state()
             done = not self.pacman.alive
             self.agent.remember(self.last_state, self.last_action, reward, new_state, done)
-            self.agent.experience_replay(64)
+            self.agent.experience_replay(128)
             if self.lives <= 0:
                 self.simulation_count += 1
                 self.final_scores.append(self.score)
@@ -187,7 +191,7 @@ class GameController(object):
 
     def grid_to_state(self):
         """Convert the grid to a state representation for Q-learning."""
-        mapping = {'x': -1.0/10, '.': 0.0/10, 'P': 1.0/10, 'G': 2.0/10, '/': -0.5/10, 's': 3.0/10, 'f' : 4.0/10, 'F' : 5.0/10}
+        mapping = {'x': 1.0/5, '.': 0.0/5, 'o': 0.5/5,'P': 2.0/5, 'G': 3.0/5, '/': 3.5/5, 's': 4.5/5, 'f' : 4.5/5, 'F' : 5.0/5}
         state = [[mapping[cell] for cell in row] for row in self.grid]
         return np.array(state, dtype=np.float32).reshape(1, 36, 28)
 
@@ -306,8 +310,12 @@ class GameController(object):
         self.startGame()
         self.showEntities()
         self.agent.exploration_rate = max(self.agent.exploration_rate * self.agent.exploration_decay, self.agent.exploration_min)  # Decrease exploration rate after each game
-        print(self.agent.exploration_rate)
-        self.agent.update_target_model()
+        if self.counter_target == 10:
+            print(self.agent.exploration_rate)
+            self.agent.update_target_model()
+            self.counter_target = 0
+        else:
+            self.counter_target = self.counter_target + 1
 
     def resetLevel(self):
         self.pause.paused = False
@@ -366,16 +374,6 @@ class GameController(object):
         for row in self.grid:
             print("".join(row))
 
-    def print_state(self):
-        """Print the current state of the grid and the converted state."""
-        print("Current Grid State:")
-        for row in self.grid:
-            print("".join(row))
-        state = self.grid_to_state()
-        print("Converted State:")
-        print(state)
-        print("\n")
-
     def update_grid(self):
         """Update the grid with the current state of the maze."""
         # Reset the grid to its initial state
@@ -421,6 +419,13 @@ class GameController(object):
             score_writer.writerow(['Episode', 'Score'])
             for i, score in enumerate(self.final_scores):
                 score_writer.writerow([i+1, score])
+
+    def print_state(self):
+        print('Last state:')
+        for row in self.last_state:
+            str = np.array2string(row, threshold = np.inf)
+            print(str)
+
 
 if __name__ == "__main__":
     game = GameController()
