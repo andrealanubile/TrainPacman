@@ -32,12 +32,14 @@ class DQNAgent:
         }
 
     def remember(self, state, action, reward, next_state, done):
+        state = np.array(state, dtype=np.float32).squeeze()
+        next_state = np.array(next_state, dtype=np.float32).squeeze()
         self.memory.append((state, action, reward, next_state, done))
 
     def choose_action(self, state):
         if np.random.rand() < self.exploration_rate:
             return random.choice(list(self.actions_mapping.values()))
-        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        state = torch.FloatTensor(state).to(self.device)
         q_values = self.model_target(state)
         action = torch.argmax(q_values).item()
         return self.actions_mapping[action]
@@ -47,17 +49,20 @@ class DQNAgent:
         self.model_target.load_state_dict(self.model_training.state_dict())
         print('Target Model Updated')
 
-
     def experience_replay(self, batch_size):
         if len(self.memory) < batch_size:
             return
         batch = random.sample(self.memory, batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
 
-        states = torch.FloatTensor(np.array(states)).to(self.device)
-        next_states = torch.FloatTensor(np.array(next_states)).to(self.device)
+        # Reshape states to (batch_size, channels, height, width)
+        states = torch.FloatTensor(states).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
         rewards = torch.FloatTensor(rewards).to(self.device)
         dones = torch.FloatTensor(dones).to(self.device)
+
+        print(f"states shape: {states.shape}")  # Debugging: Should be (batch_size, 4, height, width)
+        print(f"next_states shape: {next_states.shape}")  # Debugging: Should be (batch_size, 4, height, width)
 
         q_values = self.model_training(states)
         next_q_values = self.model_training(next_states)
@@ -75,7 +80,8 @@ class DQNAgent:
         loss.backward()
         self.optimizer.step()
 
+
     def save_model(self, path):
-            """Save the model parameters to the specified path."""
-            torch.save(self.model_training.state_dict(), path)
+        """Save the model parameters to the specified path."""
+        torch.save(self.model_training.state_dict(), path)
 

@@ -4,7 +4,7 @@ import csv
 import pygame
 from pygame.locals import *
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, deque
 from constants import *
 from pacman import Pacman
 from nodes import NodeGroup
@@ -41,7 +41,7 @@ class GameController(object):
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
-        self.state_space = (1, 36, 28)  # assuming grid size (channels, height, width)
+        self.state_space = (4, 36, 28)  # assuming grid size (channels, height, width)
         self.action_space = 4  # UP, DOWN, LEFT, RIGHT
         self.agent = DQNAgent(self.state_space, self.action_space)
         self.simulation_count = 0
@@ -88,8 +88,10 @@ class GameController(object):
             plx, ply = int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)
             self.initial_pellet_positions.add((plx, ply))
 
+        self.state_stack = deque(maxlen=4)
         self.update_grid()
-        # self.print_grid()
+        initial_state = self.grid_to_state()
+        self.state_stack = deque([initial_state] * 4, maxlen=4)
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -138,31 +140,34 @@ class GameController(object):
 
         if self.pacman.alive:
             if not self.pause.paused:
-                # Get current state
-                state = self.grid_to_state()
-                self.last_state = state
                 # self.print_state()
                 # Agent chooses action
-                action = self.agent.choose_action(state)
+                action = self.agent.choose_action(self.state_stack)
                 self.last_action = action
                 self.pacman.update(dt, action)
                 # Get new state and reward
                 new_state = self.grid_to_state()
+                # new_state = 1
+                new_state_stack = copy.deepcopy(self.state_stack)
+                new_state_stack.append(new_state)
                 reward = self.get_reward()
                 # print(reward)
                 done = not self.pacman.alive
                 # Store the experience in replay memory
-                self.agent.remember(self.last_state, self.last_action, reward, new_state, done)
+                self.agent.remember(self.state_stack, self.last_action, reward, new_state_stack, done)
                 # Train the agent with the experience
                 self.agent.experience_replay(128)
+                self.state_stack = copy.deepcopy(self.state_stack)
         else:
             self.pacman.update(dt, self.last_action)
             reward = self.get_reward()
-            print(reward)
             new_state = self.grid_to_state()
+            new_state_stack = copy.deepcopy(self.state_stack)
+            new_state_stack.append(new_state)
             done = not self.pacman.alive
-            self.agent.remember(self.last_state, self.last_action, reward, new_state, done)
+            self.agent.remember(self.state_stack, self.last_action, reward, new_state_stack, done)
             self.agent.experience_replay(128)
+            self.state_stack = copy.deepcopy(self.state_stack)
             if self.lives <= 0:
                 self.simulation_count += 1
                 self.final_scores.append(self.score)
