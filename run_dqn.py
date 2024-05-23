@@ -41,17 +41,17 @@ class GameController(object):
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
-        self.state_space = (4, 36, 28)  # assuming grid size (channels, height, width)
+        self.state_space = (1, 36, 28)  # assuming grid size (channels, height, width)
         self.action_space = 4  # UP, DOWN, LEFT, RIGHT
         self.agent = DQNAgent(self.state_space, self.action_space)
         self.simulation_count = 0
-        self.max_simulations = 1000
+        self.max_simulations = 500
         self.last_action = None
         self.last_state = None
         self.grid = None
         self.initial_pellet_positions = set()
         self.counter_target = 0
-
+        self.last_time = 0
         self.final_scores = []
 
     def startGame(self):
@@ -91,7 +91,8 @@ class GameController(object):
         self.state_stack = deque(maxlen=4)
         self.update_grid()
         initial_state = self.grid_to_state()
-        self.state_stack = deque([initial_state] * 4, maxlen=4)
+        self.state_stack = deque([initial_state] * self.state_space[0], maxlen=self.state_space[0])
+        self.last_time = pygame.time.get_ticks()
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -118,7 +119,6 @@ class GameController(object):
 
     def update(self):
         self.update_grid()
-        # self.print_grid()
         if self.simulation_count >= self.max_simulations:
             self.agent.save_model('dqn_model.pth')
             print('Policy Saved')
@@ -127,7 +127,7 @@ class GameController(object):
             sys.exit()
             return
 
-        dt = self.clock.tick(1000) / 800.0  # Update frame rate for faster updates
+        dt = self.clock.tick(10000) / 800.0  # Update frame rate for faster updates
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -137,6 +137,10 @@ class GameController(object):
             self.checkPelletEvents()
             self.checkGhostEvents()
             self.checkFruitEvents()
+
+        current_time = pygame.time.get_ticks()
+        duration = (current_time - self.last_time) / 1000.0  # Convert duration to seconds
+        self.duration = duration
 
         if self.pacman.alive:
             if not self.pause.paused:
@@ -170,7 +174,7 @@ class GameController(object):
             self.state_stack = copy.deepcopy(self.state_stack)
             if self.lives <= 0:
                 self.simulation_count += 1
-                self.final_scores.append(self.score)
+                self.final_scores.append((self.score, self.duration))
                 print_progress_bar(self.simulation_count, self.max_simulations, prefix='Progress:', suffix='Complete', length=50)  # Update the progress bar
                 self.resetGame()
             else:
@@ -196,7 +200,7 @@ class GameController(object):
 
     def grid_to_state(self):
         """Convert the grid to a state representation for Q-learning."""
-        mapping = {'x': 1.0/5, '.': 0.0/5, 'o': 0.5/5,'P': 2.0/5, 'G': 3.0/5, '/': 3.5/5, 's': 4.5/5, 'f' : 4.5/5, 'F' : 5.0/5}
+        mapping = {'x': 1.0, '.': 0.0, 'o': 0.5,'P': 2.0, 'G': 3.0, '/': 3.5, 's': 4.5, 'f' : 4.5, 'F' : 5.0}
         state = [[mapping[cell] for cell in row] for row in self.grid]
         return np.array(state, dtype=np.float32).reshape(1, 36, 28)
 
@@ -204,11 +208,14 @@ class GameController(object):
     def get_reward(self):
         """Calculate the reward based on the game state."""
         diff_score = self.score - self.pre_score  # Calculate score difference
+
+        reward = diff_score
         if not self.pacman.alive:
-            return -10000000000000  # Negative reward for dying
-        if self.pellets.isEmpty():
-            return 100000000000000  # Positive reward for collecting all pellets
-        return diff_score  # Return the score difference as the reward
+            reward = -10000000000000  # Negative reward for dying
+        elif self.pellets.isEmpty():
+            reward = 100000000000000  # Positive reward for collecting all pellets
+        # print(reward)
+        return reward  # Return the score difference as the reward
 
     def checkEvents(self):
         for event in pygame.event.get():
@@ -315,8 +322,9 @@ class GameController(object):
         self.startGame()
         self.showEntities()
         self.agent.exploration_rate = max(self.agent.exploration_rate * self.agent.exploration_decay, self.agent.exploration_min)  # Decrease exploration rate after each game
+        # self.agent.learning_rate = self.agent.learning_rate * 0.9
+        print(self.agent.exploration_rate)
         if self.counter_target == 10:
-            print(self.agent.exploration_rate)
             self.agent.update_target_model()
             self.counter_target = 0
         else:
@@ -421,15 +429,39 @@ class GameController(object):
         """Save the final scores to a CSV file."""
         with open('final_scores.csv', 'w', newline='') as csvfile:
             score_writer = csv.writer(csvfile)
-            score_writer.writerow(['Episode', 'Score'])
-            for i, score in enumerate(self.final_scores):
-                score_writer.writerow([i+1, score])
+            score_writer.writerow(['Episode', 'Score','Duration'])
+            for i, (score,duration) in enumerate(self.final_scores):
+                score_writer.writerow([i+1, score, duration])
 
     def print_state(self):
         print('Last state:')
         for row in self.last_state:
             str = np.array2string(row, threshold = np.inf)
             print(str)
+
+    def plot_scores_and_durations(scores, durations):
+        episodes = list(range(1, len(scores) + 1))
+
+        plt.figure(figsize=(12, 6))
+
+        # Plot scores
+        plt.subplot(1, 2, 1)
+        plt.plot(episodes, scores, label='Score')
+        plt.xlabel('Episode')
+        plt.ylabel('Score')
+        plt.title('Scores over Episodes')
+        plt.legend()
+
+        # Plot durations
+        plt.subplot(1, 2, 2)
+        plt.plot(episodes, durations, label='Duration', color='orange')
+        plt.xlabel('Episode')
+        plt.ylabel('Duration (s)')
+        plt.title('Durations over Episodes')
+        plt.legend()
+
+        plt.tight_layout()
+        plt.show()
 
 
 if __name__ == "__main__":
