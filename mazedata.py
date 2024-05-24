@@ -27,6 +27,19 @@ class MazeBase(object):
                 nodes.denyAccessList(*(values + (direction, ghosts)))
 
 
+class Maze0(MazeBase):
+    def __init__(self):
+        MazeBase.__init__(self)
+        self.name = "maze0"
+        self.portalPairs = {0:((0, 17), (27, 17))}
+        self.homeoffset = (11.5, 14)
+        self.homenodeconnectLeft = (12, 14)
+        self.homenodeconnectRight = (15, 14)
+        self.pacmanStart = (15, 26)
+        self.fruitStart = (9, 20)
+        self.ghostNodeDeny = {UP:((12, 14), (15, 14), (12, 26), (15, 26)), LEFT:(self.addOffset(2, 3),),
+                              RIGHT:(self.addOffset(2, 3),)}
+
 class Maze1(MazeBase):
     def __init__(self):
         MazeBase.__init__(self)
@@ -58,7 +71,7 @@ class Maze2(MazeBase):
 class MazeData(object):
     def __init__(self):
         self.obj = None
-        self.mazedict = {0:Maze1, 1:Maze2}
+        self.mazedict = {0:Maze0, 1:Maze1, 1:Maze2}
 
     def loadMaze(self, level):
         self.obj = self.mazedict[level%len(self.mazedict)]()

@@ -9,7 +9,7 @@ from constants import *
 from pacman import Pacman
 from nodes import NodeGroup
 from pellets import PelletGroup
-from ghosts import GhostGroup
+from ghosts import GhostGroup1
 from fruit import Fruit
 from pauser import Pause
 from text import TextGroup
@@ -45,7 +45,7 @@ class GameController(object):
         self.action_space = 4  # UP, DOWN, LEFT, RIGHT
         self.agent = DQNAgent(self.state_space, self.action_space)
         self.simulation_count = 0
-        self.max_simulations = 500
+        self.max_simulations = 2000
         self.last_action = None
         self.last_state = None
         self.grid = None
@@ -53,6 +53,7 @@ class GameController(object):
         self.counter_target = 0
         self.last_time = 0
         self.final_scores = []
+        self.action_number = 0
 
     def startGame(self):
         print('Starting game')
@@ -64,7 +65,7 @@ class GameController(object):
         self.mazedata.obj.connectHomeNodes(self.nodes)
         self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
         self.pellets = PelletGroup(self.mazedata.obj.name + ".txt")
-        self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman)
+        self.ghosts = GhostGroup1(self.nodes.getStartTempNode(), self.pacman)
 
         self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
         self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(0, 3)))
@@ -99,7 +100,10 @@ class GameController(object):
         self.background_norm.fill(BLACK)
         self.background_flash = pygame.surface.Surface(SCREENSIZE).convert()
         self.background_flash.fill(BLACK)
-        self.background_norm = self.mazesprites.constructBackground(self.background_norm, self.level % 5)
+        if self.level > 0:
+            self.background_norm = self.mazesprites.constructBackground(self.background_norm, self.level-1 % 5)
+        else:
+            self.background_norm = self.mazesprites.constructBackground(self.background_norm, self.level % 5)
         self.background_flash = self.mazesprites.constructBackground(self.background_flash, 5)
         self.flashBG = False
         self.background = self.background_norm
@@ -118,7 +122,9 @@ class GameController(object):
 
 
     def update(self):
+        self.action_number = self.action_number + 1
         self.update_grid()
+        # self.print_grid()
         if self.simulation_count >= self.max_simulations:
             self.agent.save_model('dqn_model.pth')
             print('Policy Saved')
@@ -127,7 +133,8 @@ class GameController(object):
             sys.exit()
             return
 
-        dt = self.clock.tick(10000) / 800.0  # Update frame rate for faster updates
+        # dt = self.clock.tick(10000) / 800.0  # Update frame rate for faster updates
+        dt = 0.1
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -200,7 +207,7 @@ class GameController(object):
 
     def grid_to_state(self):
         """Convert the grid to a state representation for Q-learning."""
-        mapping = {'x': 1.0, '.': 0.0, 'o': 0.5,'P': 2.0, 'G': 3.0, '/': 3.5, 's': 4.5, 'f' : 4.5, 'F' : 5.0}
+        mapping = {'x': 1.0/8, '.': 2.0/8, 'o': 3.0/8,'P': 4.0/8, 'G': 5.0/8, '/': 0.0, 's': 6.0/8, 'f' : 7.0/8, 'F' : 8.0/8}
         state = [[mapping[cell] for cell in row] for row in self.grid]
         return np.array(state, dtype=np.float32).reshape(1, 36, 28)
 
@@ -324,11 +331,10 @@ class GameController(object):
         self.agent.exploration_rate = max(self.agent.exploration_rate * self.agent.exploration_decay, self.agent.exploration_min)  # Decrease exploration rate after each game
         # self.agent.learning_rate = self.agent.learning_rate * 0.9
         print(self.agent.exploration_rate)
-        if self.counter_target == 10:
+        if self.action_number > 8000:
             self.agent.update_target_model()
-            self.counter_target = 0
-        else:
-            self.counter_target = self.counter_target + 1
+            self.action_number = 0
+            
 
     def resetLevel(self):
         self.pause.paused = False
@@ -401,10 +407,10 @@ class GameController(object):
 
         for pellet in self.pellets.pelletList:
             plx, ply = int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)
-            if pellet.visible:
-                self.grid[ply][plx] = "o" if pellet.name == "POWERPELLET" else "."
+            if pellet.name == 'POWERPELLET':
+                self.grid[ply][plx] = "o" 
             else:
-                self.grid[ply][plx] = "/"
+                self.grid[ply][plx] = "."
 
         # Update fruit position
         if self.fruit is not None:
