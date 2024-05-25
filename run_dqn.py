@@ -1,6 +1,7 @@
 import sys
 import copy
 import csv
+import torch
 import pygame
 from pygame.locals import *
 import numpy as np
@@ -468,6 +469,19 @@ class GameController(object):
 
         plt.tight_layout()
         plt.show()
+
+    def compare_state_dicts(self,state_dict1, state_dict2):
+        if state_dict1.keys() != state_dict2.keys():
+            print("The keys in the state dictionaries do not match.")
+            return False
+
+        for key in state_dict1.keys():
+            if not torch.equal(state_dict1[key], state_dict2[key]):
+                print(f"Parameter {key} differs.")
+                return False
+
+        print("All parameters match.")
+        return True
 
 
 if __name__ == "__main__":

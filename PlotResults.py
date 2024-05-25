@@ -14,7 +14,7 @@ data['Moving_Average'] = data['Score'].rolling(window=window_size).mean()
 
 # Calculate the exploration rate
 initial_exploration_rate = 1.0
-decay_rate = 0.99
+decay_rate = 0.999
 data['Exploration_Rate'] = initial_exploration_rate * (decay_rate ** data['Episode'])
 
 # Plotting
