@@ -204,11 +204,62 @@ class GameController(object):
         self.pre_score = self.score  # Save previous score
         self.checkEvents()
         self.render()
+        if self.action_number == 2000:
+            self.agent.update_target_model()
+            self.action_number = 0
 
 
     def grid_to_state(self):
         """Convert the grid to a state representation for Q-learning."""
         mapping = {'x': 1.0/8, '.': 2.0/8, 'o': 3.0/8,'P': 4.0/8, 'G': 5.0/8, '/': 0.0, 's': 6.0/8, 'f' : 7.0/8, 'F' : 8.0/8}
+        state = [[mapping[cell] for cell in row] for row in self.grid]
+        return np.array(state, dtype=np.float32).reshape(1, 36, 28)
+    
+    def grid_to_state_walls(self):
+        """Convert the grid to a state representation for Q-learning."""
+        mapping = {'x': 1.0, '.': 0.0, 'o': 0.0,'P': 0.0, 'G': 0.0, '/': 0.0, 's': 0.0, 'f' : 0.0, 'F' : 0.0}
+        state = [[mapping[cell] for cell in row] for row in self.grid]
+        return np.array(state, dtype=np.float32).reshape(1, 36, 28)
+    
+    def grid_to_state_pellet(self):
+        """Convert the grid to a state representation for Q-learning."""
+        mapping = {'x': 0.0, '.': 1.0, 'o': 1.0,'P': 0.0, 'G': 0.0, '/': 0.0, 's': 0.0, 'f' : 0.0, 'F' : 0.0}
+        state = [[mapping[cell] for cell in row] for row in self.grid]
+        return np.array(state, dtype=np.float32).reshape(1, 36, 28)
+    
+    def grid_to_state_Pacman(self):
+        """Convert the grid to a state representation for Q-learning."""
+        mapping = {'x': 0.0, '.': 0.0, 'o': 0.0,'P': 1.0, 'G': 0.0, '/': 0.0, 's': 0.0, 'f' : 0.0, 'F' : 0.0}
+        state = [[mapping[cell] for cell in row] for row in self.grid]
+        return np.array(state, dtype=np.float32).reshape(1, 36, 28)
+    
+    def grid_to_state_Ghost(self):
+        """Convert the grid to a state representation for Q-learning."""
+        mapping = {'x': 0.0, '.': 0.0, 'o': 0.0,'P': 0.0, 'G': 1.0, '/': 0.0, 's': 0.0, 'f' : 0.0, 'F' : 0.0}
+        state = [[mapping[cell] for cell in row] for row in self.grid]
+        return np.array(state, dtype=np.float32).reshape(1, 36, 28)
+    
+    def grid_to_state_empty(self):
+        """Convert the grid to a state representation for Q-learning."""
+        mapping = {'x': 0.0, '.': 0.0, 'o': 0.0,'P': 0.0, 'G': 0.0, '/': 1.0, 's': 0.0, 'f' : 0.0, 'F' : 0.0}
+        state = [[mapping[cell] for cell in row] for row in self.grid]
+        return np.array(state, dtype=np.float32).reshape(1, 36, 28)
+    
+    def grid_to_state_GhostScared(self):
+        """Convert the grid to a state representation for Q-learning."""
+        mapping = {'x': 0.0, '.': 0.0, 'o': 0.0,'P': 0.0, 'G': 0.0, '/': 0.0, 's': 1.0, 'f' : 0.0, 'F' : 0.0}
+        state = [[mapping[cell] for cell in row] for row in self.grid]
+        return np.array(state, dtype=np.float32).reshape(1, 36, 28)
+    
+    def grid_to_state_GhostEaten(self):
+        """Convert the grid to a state representation for Q-learning."""
+        mapping = {'x': 0.0, '.': 0.0, 'o': 0.0,'P': 0.0, 'G': 0.0, '/': 0.0, 's': 0.0, 'f' : 1.0, 'F' : 0.0}
+        state = [[mapping[cell] for cell in row] for row in self.grid]
+        return np.array(state, dtype=np.float32).reshape(1, 36, 28)
+    
+    def grid_to_state_Fruit(self):
+        """Convert the grid to a state representation for Q-learning."""
+        mapping = {'x': 0.0, '.': 0.0, 'o': 0.0,'P': 0.0, 'G': 0.0, '/': 0.0, 's': 0.0, 'f' : 0.0, 'F' : 1.0}
         state = [[mapping[cell] for cell in row] for row in self.grid]
         return np.array(state, dtype=np.float32).reshape(1, 36, 28)
 
@@ -332,9 +383,6 @@ class GameController(object):
         self.agent.exploration_rate = max(self.agent.exploration_rate * self.agent.exploration_decay, self.agent.exploration_min)  # Decrease exploration rate after each game
         # self.agent.learning_rate = self.agent.learning_rate * 0.9
         print(self.agent.exploration_rate)
-        if self.action_number > 8000:
-            self.agent.update_target_model()
-            self.action_number = 0
             
 
     def resetLevel(self):
