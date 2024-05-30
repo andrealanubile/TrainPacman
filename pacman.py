@@ -1,5 +1,4 @@
 import pygame
-import random
 from pygame.locals import *
 from vector import Vector2
 from constants import *
@@ -28,10 +27,10 @@ class Pacman(Entity):
         self.alive = False
         self.direction = STOP
 
-    def update(self, dt, action):	
+    def update(self, dt):	
         self.sprites.update(dt)
         self.position += self.directions[self.direction]*self.speed*dt
-        direction = self.getValidKey(action)
+        direction = self.getValidKey()
         if self.overshotTarget():
             self.node = self.target
             if self.node.neighbors[PORTAL] is not None:
@@ -49,23 +48,17 @@ class Pacman(Entity):
             if self.oppositeDirection(direction):
                 self.reverseDirection()
 
-    def getValidKey(self,action):
-    #    key_pressed = pygame.key.get_pressed()
-        if action == 'UP':
+    def getValidKey(self):
+        key_pressed = pygame.key.get_pressed()
+        if key_pressed[K_UP]:
             return UP
-        if action == 'DOWN':
+        if key_pressed[K_DOWN]:
             return DOWN
-        if action == 'LEFT':
+        if key_pressed[K_LEFT]:
             return LEFT
-        if action == 'RIGHT':
+        if key_pressed[K_RIGHT]:
             return RIGHT
         return STOP  
-    
-    # def get_random_direction(self):
-    #     """Return a random direction for Pacman."""
-    #     directions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
-    #     return random.choice(directions)
-
 
     def eatPellets(self, pelletList):
         for pellet in pelletList:
