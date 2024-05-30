@@ -11,9 +11,11 @@ from text import TextGroup
 from sprites import LifeSprites
 from sprites import MazeSprites
 from mazedata import MazeData
+import time
+import argparse
 
 class GameController(object):
-    def __init__(self):
+    def __init__(self, fps=30):
         pygame.init()
         self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
         self.background = None
@@ -33,6 +35,7 @@ class GameController(object):
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
+        self.fps = fps
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -99,7 +102,8 @@ class GameController(object):
         
 
     def update(self):
-        dt = self.clock.tick(30) / 1000.0
+        # dt = self.clock.tick(30) / 1000.0
+        dt = 1 / 10
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -130,6 +134,9 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
+        if self.fps > 0:
+            time.sleep(1/self.fps)
+
 
     def checkEvents(self):
         for event in pygame.event.get():
@@ -270,7 +277,11 @@ class GameController(object):
 
 
 if __name__ == "__main__":
-    game = GameController()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--fps', action='store')
+    args = parser.parse_args()
+    print(args.fps)
+    game = GameController(int(args.fps))
     game.startGame()
     while True:
         game.update()
