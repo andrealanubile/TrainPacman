@@ -46,9 +46,10 @@ class GameController(object):
         self.action_space = 4  # UP, DOWN, LEFT, RIGHT
         self.agent = DQNAgent(self.state_space, self.action_space)
         self.simulation_count = 0
-        self.max_simulations = 2000
+        self.max_simulations = 3000
         self.last_action = None
         self.last_state = None
+
         self.grid = None
         self.initial_pellet_positions = set()
         self.counter_target = 0
@@ -94,6 +95,7 @@ class GameController(object):
         self.update_grid()
         initial_state = self.grid_to_state()
         self.state_stack = deque([initial_state] * self.state_space[0], maxlen=self.state_space[0])
+        self.last_state_stack = deque([initial_state] * self.state_space[0], maxlen=self.state_space[0])
         self.last_time = pygame.time.get_ticks()
 
     def setBackground(self):
@@ -123,8 +125,14 @@ class GameController(object):
 
 
     def update(self):
+        
+        if self.action_number == 8000:
+            self.agent.update_target_model()
+            # self.agent.alpha = max(0.1,self.agent.alpha - 0.04)
+            # print(self.agent.alpha)
+            self.action_number = 0
+
         self.action_number = self.action_number + 1
-        self.update_grid()
         # self.print_grid()
         if self.simulation_count >= self.max_simulations:
             self.agent.save_model('dqn_model.pth')
@@ -157,29 +165,33 @@ class GameController(object):
                 action = self.agent.choose_action(self.state_stack)
                 self.last_action = action
                 self.pacman.update(dt, action)
+                self.update_grid()
                 # Get new state and reward
                 new_state = self.grid_to_state()
-                # new_state = 1
                 new_state_stack = copy.deepcopy(self.state_stack)
                 new_state_stack.append(new_state)
+                # print(np.array_equal(new_state_stack, self.state_stack))
                 reward = self.get_reward()
                 # print(reward)
                 done = not self.pacman.alive
                 # Store the experience in replay memory
                 self.agent.remember(self.state_stack, self.last_action, reward, new_state_stack, done)
                 # Train the agent with the experience
-                self.agent.experience_replay(128)
-                self.state_stack = copy.deepcopy(self.state_stack)
+                self.agent.experience_replay(32)
+                self.last_state_stack = copy.deepcopy(self.state_stack)
+                self.state_stack = copy.deepcopy(new_state_stack)
         else:
             self.pacman.update(dt, self.last_action)
+            self.update_grid()
+            # self.print_grid()
             reward = self.get_reward()
-            new_state = self.grid_to_state()
-            new_state_stack = copy.deepcopy(self.state_stack)
-            new_state_stack.append(new_state)
+            # new_state = self.grid_to_state()
+            # new_state_stack = copy.deepcopy(self.state_stack)
+            # new_state_stack.append(new_state)
             done = not self.pacman.alive
-            self.agent.remember(self.state_stack, self.last_action, reward, new_state_stack, done)
-            self.agent.experience_replay(128)
-            self.state_stack = copy.deepcopy(self.state_stack)
+            self.agent.remember(self.last_state_stack, self.last_action, reward, self.state_stack, done)
+            self.agent.experience_replay(32)
+            # self.state_stack = copy.deepcopy(new_state_stack)
             if self.lives <= 0:
                 self.simulation_count += 1
                 self.final_scores.append((self.score, self.duration))
@@ -204,9 +216,6 @@ class GameController(object):
         self.pre_score = self.score  # Save previous score
         self.checkEvents()
         self.render()
-        if self.action_number == 2000:
-            self.agent.update_target_model()
-            self.action_number = 0
 
 
     def grid_to_state(self):
@@ -381,8 +390,9 @@ class GameController(object):
         self.startGame()
         self.showEntities()
         self.agent.exploration_rate = max(self.agent.exploration_rate * self.agent.exploration_decay, self.agent.exploration_min)  # Decrease exploration rate after each game
-        # self.agent.learning_rate = self.agent.learning_rate * 0.9
         print(self.agent.exploration_rate)
+        # print(self.agent.alpha)
+
             
 
     def resetLevel(self):

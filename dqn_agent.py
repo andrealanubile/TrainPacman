@@ -9,7 +9,7 @@ from PERMemory import PERMemory
 from dqn_model import DQN
 
 class DQNAgent:
-    def __init__(self, input_shape, num_actions, learning_rate=0.0001, gamma=0.99, exploration_max=1.0, exploration_min=0.1, exploration_decay=0.999):
+    def __init__(self, input_shape, num_actions, learning_rate=0.0001, gamma=0.99, exploration_max=1.0, exploration_min=0.1, exploration_decay=0.995):
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.learning_rate = learning_rate
@@ -18,9 +18,11 @@ class DQNAgent:
         self.exploration_min = exploration_min
         self.exploration_decay = exploration_decay
         self.device = torch.device("cuda")
+        
+        self.alpha = 0.6
 
         # self.memory = deque(maxlen=1000000)
-        self.memory = PERMemory(capacity=1000000, alpha=0.6)
+        self.memory = PERMemory(capacity=1000000, alpha=self.alpha)
         
         self.model_target = DQN(input_shape, num_actions).to(self.device)
         self.model_training = DQN(input_shape, num_actions).to(self.device)
@@ -41,7 +43,7 @@ class DQNAgent:
     #     state = np.array(state, dtype=np.float32).squeeze()
     #     next_state = np.array(next_state, dtype=np.float32).squeeze()
     #     self.memory.append((state, action, reward, next_state, done))
-    #     # print(len(self.memory))
+        # print(len(self.memory))
 
     def remember(self, state, action, reward, next_state, done):
         state = np.array(state, dtype=np.float32).squeeze()
