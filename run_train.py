@@ -14,6 +14,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import sys
+from tqdm import tqdm
 
 
 
@@ -130,7 +131,7 @@ if __name__ == '__main__':
     game = GameController()
     game.startGame()
 
-    for i_episode in range(NUM_EPISODES):
+    for i_episode in tqdm(range(NUM_EPISODES)):
         # Initialize the environment and get its state
         if i_episode > 0:
             game.restartGame()
