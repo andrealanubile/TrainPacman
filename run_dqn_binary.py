@@ -42,13 +42,17 @@ class GameController(object):
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
-        self.state_space = (1, 36, 28)  # assuming grid size (channels, height, width)
+        self.state_space = (4, 36, 28)  # assuming grid size (channels, height, width)
         self.action_space = 4  # UP, DOWN, LEFT, RIGHT
         self.agent = DQNAgent(self.state_space, self.action_space)
         self.simulation_count = 0
-        self.max_simulations = 3000
+        self.max_simulations = 10000
         self.last_action = None
+        self.state = None
         self.last_state = None
+        self.last_done = None
+        self.last_action = None
+        self.last_reward = None
 
         self.grid = None
         self.initial_pellet_positions = set()
@@ -92,13 +96,10 @@ class GameController(object):
             plx, ply = int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)
             self.initial_pellet_positions.add((plx, ply))
 
-        self.state_stack = deque(maxlen=4)
-        self.update_grid()
-        initial_state = self.grid_to_state()
-        self.state_stack = deque([initial_state] * self.state_space[0], maxlen=self.state_space[0])
-        self.last_state_stack = deque([initial_state] * self.state_space[0], maxlen=self.state_space[0])
-        self.last_last_state_stack = deque([initial_state] * self.state_space[0], maxlen=self.state_space[0])
+        self.state = self.update_grid_binary()
+        self.last_state = self.update_grid_binary()
         self.last_time = pygame.time.get_ticks()
+        print(self.agent.exploration_rate)
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -128,12 +129,22 @@ class GameController(object):
 
     def update(self):
         
+        # for row in self.grid_bin_pacman:
+        #     print(row)
+        #     # print('/n')
+        
         if self.action_number_target == 8000:
             self.agent.update_target_model()
-            self.action_number = 0
+            self.action_number_target = 0
 
-        self.action_number = self.action_number + 1
-        # self.print_grid()
+        if self.action_number_exp == 4000:
+            self.agent.exploration_rate = max(self.agent.exploration_rate * self.agent.exploration_decay, self.agent.exploration_min)  # Decrease exploration rate after each game
+            print(self.agent.exploration_rate)
+            self.action_number_exp = 0
+
+        self.action_number_target = self.action_number_target + 1
+        self.action_number_exp = self.action_number_exp + 1
+ 
         if self.simulation_count >= self.max_simulations:
             self.agent.save_model('dqn_model.pth')
             print('Policy Saved')
@@ -160,37 +171,34 @@ class GameController(object):
                 self.checkFruitEvents()
                 
                 if self.pacman.alive:
-                    self.update_grid()
-                    state = self.grid_to_state()
-                    self.state_stack.append(state)
+                    if self.last_reward is not None:
+                        self.agent.remember(self.last_state, self.last_action, self.last_reward, self.state, self.last_done)
+
+                    state = self.update_grid_binary()
                     # Agent chooses action
-                    action = self.agent.choose_action(self.state_stack)
+                    action = self.agent.choose_action_binary(state)
                     self.last_action = action
                     self.pacman.update(dt, action)
                     
                     # Get new state and reward
-                    self.update_grid()
-                    new_state = self.grid_to_state()
-                    new_state_stack = copy.deepcopy(self.state_stack)
-                    new_state_stack.append(new_state)
+                    new_state = self.update_grid_binary()
                     # print(np.array_equal(new_state_stack, self.state_stack))
                     self.checkGhostEvents()
-                    reward = self.get_reward()
+                    self.last_reward = self.get_reward()
                     # print(reward)
-                    done = self.pacman.alive
+                    self.last_done = self.pacman.alive
                     # Store the experience in replay memory
-                    self.agent.remember(self.state_stack, self.last_action, reward, new_state_stack, done)
-                    self.last_state_stack = copy.deepcopy(self.state_stack)
-                    self.state_stack = copy.deepcopy(new_state_stack)
+                    self.last_state = copy.deepcopy(self.state)
+                    self.state = copy.deepcopy(new_state)
                 else:
                     reward = self.get_reward()
                     done = self.pacman.alive
-                    self.agent.remember(self.last_state_stack, self.last_action, reward, self.state_stack, done)
+                    self.agent.remember(self.last_state, self.last_action, reward, self.state, done)
 
 
 
                 # Train the agent with the experience
-                self.agent.experience_replay(128)
+                self.agent.experience_replay_binary(128)
 
         else:
             done = not self.pacman.alive
@@ -279,6 +287,9 @@ class GameController(object):
     def get_reward(self):
         """Calculate the reward based on the game state."""
         diff_score = self.score - self.pre_score  # Calculate score difference
+
+        if diff_score == 0:
+            reward = -0.5
 
         reward = diff_score
         if not self.pacman.alive:
@@ -392,9 +403,6 @@ class GameController(object):
         self.fruitCaptured = []
         self.startGame()
         self.showEntities()
-        self.agent.exploration_rate = max(self.agent.exploration_rate * self.agent.exploration_decay, self.agent.exploration_min)  # Decrease exploration rate after each game
-        print(self.agent.exploration_rate)
-
             
 
     def resetLevel(self):
@@ -491,6 +499,53 @@ class GameController(object):
         # Update Pac-Man position
         px, py = int(self.pacman.position.x // TILEWIDTH), int(self.pacman.position.y // TILEHEIGHT)
         self.grid[py][px] = "P"
+
+    def update_grid_binary(self):
+        """Update the grid with the current state of the maze."""
+        # Reset the grid to its initial state
+        # Determine the dimensions of the initial grid
+        num_rows = len(self.initial_grid)
+        num_cols = len(self.initial_grid[0]) if num_rows > 0 else 0
+
+        # Create a matrix of all zeros with the same dimensions as the initial grid
+        self.grid_bin_pellet = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        self.grid_bin_fruit = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        self.grid_bin_ghost = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        self.grid_bin_pacman = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+
+
+        # Update pellet positions
+        current_pellet_positions = {(int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)) for pellet in self.pellets.pelletList}
+
+        for pellet in self.pellets.pelletList:
+            plx, ply = int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)
+            if pellet.name == 'POWERPELLET':
+                self.grid_bin_pellet[ply][plx] = 1 
+            else:
+                self.grid_bin_pellet[ply][plx] = 1
+
+        # Update fruit position
+        if self.fruit is not None:
+            fx, fy = int(self.fruit.position.x // TILEWIDTH), int(self.fruit.position.y // TILEHEIGHT)
+            self.grid_bin_fruit[fy][fx] = 1
+
+        # Update ghost positions
+        for ghost in self.ghosts:
+            gx, gy = int(ghost.position.x // TILEWIDTH), int(ghost.position.y // TILEHEIGHT)
+            if ghost.mode.current == FREIGHT:
+                self.grid_bin_ghost[gy][gx] = 1  # Ghosts in frightened mode
+            elif ghost.mode.current == SPAWN:
+                self.grid_bin_ghost[gy][gx] = 1  # Ghosts returning to the spawn point
+            else:
+                self.grid_bin_ghost[gy][gx] = 1  # Normal mode
+
+        # Update Pac-Man position
+        px, py = int(self.pacman.position.x // TILEWIDTH), int(self.pacman.position.y // TILEHEIGHT)
+        self.grid_bin_pacman[py][px] = 1
+
+        state = np.stack([self.grid_bin_fruit, self.grid_bin_ghost, self.grid_bin_pacman, self.grid_bin_pellet])
+
+        return state
 
     def save_scores_to_csv(self):
         """Save the final scores to a CSV file."""
