@@ -31,9 +31,10 @@ class GameController(object):
         self.fruit = None
         self.pause = Pause(False)  # Start the game unpaused
         self.level = 0
-        self.lives = 5
+        self.lives = 0
         self.score = 0
         self.pre_score = 0
+        self.episode_reward = 0
         self.textgroup = TextGroup()
         self.lifesprites = LifeSprites(self.lives)
         self.flashBG = False
@@ -47,6 +48,8 @@ class GameController(object):
         self.agent = DQNAgent(self.state_space, self.action_space)
         self.simulation_count = 0
         self.max_simulations = 10000
+        self.episode_horizon = 200
+        self.step_count = 0
         self.last_action = None
         self.state = None
         self.last_state = None
@@ -116,9 +119,11 @@ class GameController(object):
 
     def resetGame(self):
         self.level = 0
-        self.lives = 5
+        self.lives = 1
         self.score = 0
         self.pre_score = 0  # Reset previous score
+        self.episode_reward = 0
+        self.step_count = 0
         self.textgroup.updateScore(self.score)
         self.textgroup.updateLevel(self.level)
         self.lifesprites.resetLives(self.lives)
@@ -132,6 +137,11 @@ class GameController(object):
         # for row in self.grid_bin_pacman:
         #     print(row)
         #     # print('/n')
+        if self.step_count > self.episode_horizon:
+            self.pacman.alive = False
+
+
+        self.step_count += 1
         
         if self.action_number_target == 8000:
             self.agent.update_target_model()
@@ -185,6 +195,7 @@ class GameController(object):
                     # print(np.array_equal(new_state_stack, self.state_stack))
                     self.checkGhostEvents()
                     self.last_reward = self.get_reward()
+                    self.episode_reward += self.last_reward
                     # print(reward)
                     self.last_done = self.pacman.alive
                     # Store the experience in replay memory
@@ -205,7 +216,7 @@ class GameController(object):
             # self.state_stack = copy.deepcopy(new_state_stack)
             if self.lives <= 0:
                 self.simulation_count += 1
-                self.final_scores.append((self.score, self.duration))
+                self.final_scores.append((self.episode_reward, self.duration))
                 print_progress_bar(self.simulation_count, self.max_simulations, prefix='Progress:', suffix='Complete', length=50)  # Update the progress bar
                 self.resetGame()
             else:
@@ -288,14 +299,14 @@ class GameController(object):
         """Calculate the reward based on the game state."""
         diff_score = self.score - self.pre_score  # Calculate score difference
 
-        if diff_score == 0:
-            reward = -0.5
+        # if diff_score == 0:
+        #     reward = -0.5
 
         reward = diff_score
         if not self.pacman.alive:
-            reward = -10000000000000  # Negative reward for dying
+            reward = -100  # Negative reward for dying
         elif self.pellets.isEmpty():
-            reward = 100000000000000  # Positive reward for collecting all pellets
+            reward = 100  # Positive reward for collecting all pellets
         # print(reward)
         return reward  # Return the score difference as the reward
 
@@ -394,7 +405,7 @@ class GameController(object):
     def restartGame(self):
         self.save_scores_to_csv()
         self.level = 0
-        self.lives = 5
+        self.lives = 0
         self.score = 0
         self.pre_score = 0  # Reset previous score
         self.textgroup.updateScore(self.score)
