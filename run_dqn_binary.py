@@ -133,11 +133,11 @@ class GameController(object):
         #     print(row)
         #     # print('/n')
         
-        if self.action_number_target == 8000:
+        if self.action_number_target == 6000:
             self.agent.update_target_model()
             self.action_number_target = 0
 
-        if self.action_number_exp == 4000:
+        if self.action_number_exp == 3000:
             self.agent.exploration_rate = max(self.agent.exploration_rate * self.agent.exploration_decay, self.agent.exploration_min)  # Decrease exploration rate after each game
             print(self.agent.exploration_rate)
             self.action_number_exp = 0
@@ -198,7 +198,7 @@ class GameController(object):
 
 
                 # Train the agent with the experience
-                self.agent.experience_replay_binary(128)
+                self.agent.experience_replay_binary(64)
 
         else:
             done = not self.pacman.alive
@@ -289,7 +289,7 @@ class GameController(object):
         diff_score = self.score - self.pre_score  # Calculate score difference
 
         if diff_score == 0:
-            reward = -0.5
+            reward = -0.1
 
         reward = diff_score
         if not self.pacman.alive:

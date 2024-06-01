@@ -37,7 +37,7 @@ class PacmanSprites(Spritesheet):
         self.animations[RIGHT] = Animator(((10,0), (2, 0), (2, 2), (2, 0)))
         self.animations[UP] = Animator(((10,2), (6, 0), (6, 2), (6, 0)))
         self.animations[DOWN] = Animator(((8,2), (4, 0), (4, 2), (4, 0)))
-        self.animations[DEATH] = Animator(((0, 12), (2, 12), (4, 12), (6, 12), (8, 12), (10, 12), (12, 12), (14, 12), (16, 12), (18, 12), (20, 12)), speed=16, loop=False)
+        self.animations[DEATH] = Animator(((0, 12), (2, 12), (4, 12), (6, 12), (8, 12), (10, 12), (12, 12), (14, 12), (16, 12), (18, 12), (20, 12)), speed=0, loop=False)
 
     def update(self, dt):
         if self.entity.alive == True:
