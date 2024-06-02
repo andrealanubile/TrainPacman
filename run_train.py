@@ -16,6 +16,8 @@ import numpy as np
 import sys
 from tqdm import tqdm
 
+global debug
+debug = False
 
 
 def optimize_model():
@@ -66,37 +68,37 @@ def optimize_model():
 
 
 def plot_rewards(show_result=False):
-    plt.figure(1)
     rewards_t = torch.tensor(episode_rewards, dtype=torch.float)
     if show_result:
-        plt.title('Result')
+        ax1.set_title('Result')
     else:
-        plt.clf()
-        plt.title('Training...')
-    plt.xlabel('Episode')
-    plt.ylabel('Reward')
-    plt.plot(rewards_t.numpy())
+        ax1.clear()
+        ax1.set_title('Training...')
+    ax1.set_xlabel('Episode')
+    ax1.set_ylabel('Reward')
+    ax1.plot(rewards_t.numpy())
     # Take 100 episode averages and plot them too
     if len(rewards_t) >= 100:
         means = rewards_t.unfold(0, 100, 1).mean(1).view(-1)
         means = torch.cat((torch.zeros(99), means))
-        plt.plot(means.numpy())
+        ax1.plot(means.numpy())
+
+    ax2.set_ylabel('Exploration rate')
+    ax2.plot(episode_eps)
 
     plt.pause(0.001)  # pause a bit so that plots are updated
 
 
-def select_action(state, steps_done):
+def select_action(state, exploration_rate):
     sample = random.random()
-    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
-        math.exp(-1. * steps_done / EPS_DECAY)
-    if sample > eps_threshold:
+    if sample > exploration_rate:
         with torch.no_grad():
             # t.max(1) will return the largest column value of each row.
             # second column on max result is index of where max element was
             # found, so we pick action with the larger expected reward.
             return policy_net(state).max(1).indices.view(1, 1)
     else:
-        return torch.tensor(np.random.choice(np.arange(n_actions)), device=device, dtype=torch.long)
+        return torch.tensor(np.random.choice(np.arange(n_actions)), device=device, dtype=torch.long).view(1, 1)
 
 
 if __name__ == '__main__':
@@ -107,14 +109,17 @@ if __name__ == '__main__':
     GAMMA = 0.99
     EPS_START = 0.9
     EPS_END = 0.05
-    EPS_DECAY = 1000
+    EPS_DECAY = 800
     REPLAY_SIZE = 10000
     TAU = 0.005
     LR = 1e-4
-    NUM_EPISODES = 10000
+    NUM_EPISODES = 3000
     HORIZON = 200
 
-    state_dim = (4, 36, 28)  # assuming grid size (channels, height, width)
+    game = GameController(debug)
+    game.startGame()
+
+    state_dim = (3, len(game.rows_use), len(game.cols_use))  # assuming grid size (channels, height, width)
     n_actions = 4  # UP, DOWN, LEFT, RIGHT
 
     policy_net = DQN(state_dim, n_actions).to(device)
@@ -127,9 +132,10 @@ if __name__ == '__main__':
     steps_done = 0
 
     episode_rewards = []
+    episode_eps = []
 
-    game = GameController()
-    game.startGame()
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
 
     for i_episode in tqdm(range(NUM_EPISODES)):
         # Initialize the environment and get its state
@@ -138,10 +144,10 @@ if __name__ == '__main__':
         state = game.get_state()
         state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
         episode_reward = 0
+        exploration_rate = EPS_END + (EPS_START - EPS_END) * math.exp(-1. * i_episode / EPS_DECAY)
         for t in count():
-            action = select_action(state, steps_done).item()
-            steps_done += 1
-            reward, next_state, done = game.update(action)
+            action = select_action(state, exploration_rate)
+            reward, next_state, done = game.update(action.item())
             reward = torch.tensor([reward], device=device)
             episode_reward += reward
 
@@ -170,13 +176,17 @@ if __name__ == '__main__':
             if t is not None:
                 if t > HORIZON:
                     episode_rewards.append(episode_reward)
+                    episode_eps.append(exploration_rate)
                     plot_rewards()
                     break
 
             if done:
                 episode_rewards.append(episode_reward)
+                episode_eps.append(exploration_rate)
                 plot_rewards()
                 break
+
+    torch.save(policy_net.state_dict(), 'dqn_model.pth')
 
     print('Complete')
     plot_rewards(show_result=True)

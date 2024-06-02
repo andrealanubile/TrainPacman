@@ -14,7 +14,7 @@ from mazedata import MazeData
 import numpy as np
 
 class GameController(object):
-    def __init__(self):
+    def __init__(self, debug):
         pygame.init()
         self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
         self.background = None
@@ -35,6 +35,7 @@ class GameController(object):
         self.fruitNode = None
         self.mazedata = MazeData()
         self.initial_pellet_positions = set()
+        self.debug = debug
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -86,7 +87,8 @@ class GameController(object):
             2: 'LEFT',
             3: 'RIGHT'
         }
-        print(f'action: {actions_mapping[action]}')
+        if self.debug:
+            print(f'action: {actions_mapping[action]}')
         self.textgroup.update(dt)
         self.pellets.update(dt)
         pellet_eaten = False
@@ -94,15 +96,10 @@ class GameController(object):
             self.ghosts.update(dt)      
             if self.fruit is not None:
                 self.fruit.update(dt)
+            self.pacman.update(dt, actions_mapping[action])
             pellet_eaten = self.checkPelletEvents()
             self.checkGhostEvents()
             self.checkFruitEvents()
-
-        if self.pacman.alive:
-            if not self.pause.paused:
-                self.pacman.update(dt, actions_mapping[action])
-        else:
-            self.pacman.update(dt, actions_mapping[action])
 
         if self.flashBG:
             self.flashTimer += dt
@@ -121,9 +118,10 @@ class GameController(object):
 
         state = self.get_state()
         reward = self.get_reward(pellet_eaten)
-        print(f'reward: {reward}')
-        print(f'pacman loc: {np.argwhere(state[2])}')
-        print(f'num pellets: {np.sum(state[3])}')
+        if self.debug:
+            print(f'reward: {reward}')
+            print(f'pacman loc: {np.argwhere(state[2])}')
+            print(f'num pellets: {np.sum(state[1])}')
         done = False
         if self.lives <= 0:
             done = True
@@ -207,7 +205,7 @@ class GameController(object):
         if self.pellets.numEaten == 50 or self.pellets.numEaten == 140:
             if self.fruit is None:
                 self.fruit = Fruit(self.nodes.getNodeFromTiles(9, 20), self.level)
-                print(self.fruit)
+                # print(self.fruit)
         if self.fruit is not None:
             if self.pacman.collideCheck(self.fruit):
                 self.updateScore(self.fruit.points)
@@ -290,18 +288,22 @@ class GameController(object):
         with open(filename, 'r') as file:
             content = file.read()
         
-        translation_table = str.maketrans({
-            'X': 'x', '0': 'x', '1': 'x', '2': 'x', '3': 'x',
-            '4': 'x', '5': 'x', '6': 'x', '7': 'x', '8': 'x',
-            '9': 'x', '=': 'x', 'n': '/', '-': '/', 'l': '/',
-            '.': '.', '+': '.', 'p': 'o','|':'/'
-        })
+        # translation_table = str.maketrans({
+        #     'X': 'x', '0': 'x', '1': 'x', '2': 'x', '3': 'x',
+        #     '4': 'x', '5': 'x', '6': 'x', '7': 'x', '8': 'x',
+        #     '9': 'x', '=': 'x', 'n': '/', '-': '/', 'l': '/',
+        #     '.': '.', '+': '.', 'p': 'o','|':'/'
+        # })
         
-        self.transformed_text = content.translate(translation_table)
+        # self.transformed_text = content.translate(translation_table)
+        self.transformed_text = content
         
         # Create the grid, keeping the spaces intact
         self.grid = [list(line.replace(' ', '')) for line in self.transformed_text.split('\n') if line.strip()]
-        self.initial_grid = [row[:] for row in self.grid]  # Save initial grid state
+        self.initial_grid = np.array([row[:] for row in self.grid])  # Save initial grid state
+        self.rows_use = np.where(np.logical_not(np.all(self.initial_grid == 'X', axis=1)))[0]
+        self.cols_use = np.where(np.logical_not(np.all(self.initial_grid == 'X', axis=0)))[0]
+
         return True
 
 
@@ -313,42 +315,47 @@ class GameController(object):
         num_cols = len(self.initial_grid[0]) if num_rows > 0 else 0
 
         # Create a matrix of all zeros with the same dimensions as the initial grid
-        self.grid_bin_pellet = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
-        self.grid_bin_fruit = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
-        self.grid_bin_ghost = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
-        self.grid_bin_pacman = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        # self.grid_bin_pellet = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        # self.grid_bin_fruit = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        # self.grid_bin_ghost = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        # self.grid_bin_pacman = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+
+        state = np.zeros((3, num_rows, num_cols))
+
+        # Wall state
+        state[0][np.char.isnumeric(self.initial_grid)] = 1
 
 
         # Update pellet positions
-        current_pellet_positions = {(int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)) for pellet in self.pellets.pelletList}
+        # current_pellet_positions = {(int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)) for pellet in self.pellets.pelletList}
 
         for pellet in self.pellets.pelletList:
             plx, ply = int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)
             if pellet.name == 'POWERPELLET':
-                self.grid_bin_pellet[ply][plx] = 1 
+                state[1, ply, plx] = 1 
             else:
-                self.grid_bin_pellet[ply][plx] = 1
+                state[1, ply, plx] = 1
 
         # Update fruit position
-        if self.fruit is not None:
-            fx, fy = int(self.fruit.position.x // TILEWIDTH), int(self.fruit.position.y // TILEHEIGHT)
-            self.grid_bin_fruit[fy][fx] = 1
+        # if self.fruit is not None:
+        #     fx, fy = int(self.fruit.position.x // TILEWIDTH), int(self.fruit.position.y // TILEHEIGHT)
+        #     self.grid_bin_fruit[fy][fx] = 1
 
         # Update ghost positions
-        for ghost in self.ghosts:
-            gx, gy = int(ghost.position.x // TILEWIDTH), int(ghost.position.y // TILEHEIGHT)
-            if ghost.mode.current == FREIGHT:
-                self.grid_bin_ghost[gy][gx] = 1  # Ghosts in frightened mode
-            elif ghost.mode.current == SPAWN:
-                self.grid_bin_ghost[gy][gx] = 1  # Ghosts returning to the spawn point
-            else:
-                self.grid_bin_ghost[gy][gx] = 1  # Normal mode
+        # for ghost in self.ghosts:
+        #     gx, gy = int(ghost.position.x // TILEWIDTH), int(ghost.position.y // TILEHEIGHT)
+        #     if ghost.mode.current == FREIGHT:
+        #         self.grid_bin_ghost[gy][gx] = 1  # Ghosts in frightened mode
+        #     elif ghost.mode.current == SPAWN:
+        #         self.grid_bin_ghost[gy][gx] = 1  # Ghosts returning to the spawn point
+        #     else:
+        #         self.grid_bin_ghost[gy][gx] = 1  # Normal mode
 
         # Update Pac-Man position
         px, py = int(self.pacman.position.x // TILEWIDTH), int(self.pacman.position.y // TILEHEIGHT)
-        self.grid_bin_pacman[py][px] = 1
+        state[2, py, px] = 1
 
-        state = np.stack([self.grid_bin_fruit, self.grid_bin_ghost, self.grid_bin_pacman, self.grid_bin_pellet])
+        state = state[:, np.min(self.rows_use):np.max(self.rows_use)+1, np.min(self.cols_use):np.max(self.cols_use)+1]
 
         return state
 
