@@ -31,7 +31,7 @@ class Pacman(Entity):
     def update(self, dt, action):	
         self.sprites.update(dt)
         self.direction = self.getValidKey(action)
-        print(action)
+        # print(action)
         self.target = self.getNewTarget(self.direction)
         self.position += self.directions[self.direction]*self.speed*dt
         
