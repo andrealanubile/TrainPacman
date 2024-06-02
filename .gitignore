@@ -162,3 +162,5 @@ cython_debug/
 #.idea/
 
 pacman-venv
+
+node_modules

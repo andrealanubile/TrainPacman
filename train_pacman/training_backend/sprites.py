@@ -2,6 +2,7 @@ import pygame
 from constants import *
 import numpy as np
 from animation import Animator
+from pathlib import Path
 
 BASETILEWIDTH = 16
 BASETILEHEIGHT = 16
@@ -9,7 +10,8 @@ DEATH = 5
 
 class Spritesheet(object):
     def __init__(self):
-        self.sheet = pygame.image.load("spritesheet_mspacman.png").convert()
+        self.script_dir = Path(__file__).parent
+        self.sheet = pygame.image.load(self.script_dir / "assets" / "spritesheet_mspacman.png").convert()
         transcolor = self.sheet.get_at((0,0))
         self.sheet.set_colorkey(transcolor)
         width = int(self.sheet.get_width() / BASETILEWIDTH * TILEWIDTH)
@@ -148,7 +150,7 @@ class MazeSprites(Spritesheet):
         return Spritesheet.getImage(self, x, y, TILEWIDTH, TILEHEIGHT)
 
     def readMazeFile(self, mazefile):
-        return np.loadtxt(mazefile, dtype='<U1')
+        return np.loadtxt(self.script_dir / 'assets' / mazefile, dtype='<U1')
 
     def constructBackground(self, background, y):
         for row in list(range(self.data.shape[0])):

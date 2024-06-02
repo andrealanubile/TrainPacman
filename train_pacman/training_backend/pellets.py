@@ -2,6 +2,7 @@ import pygame
 from vector import Vector2
 from constants import *
 import numpy as np
+from pathlib import Path
 
 class Pellet(object):
     def __init__(self, row, column):
@@ -38,6 +39,7 @@ class PowerPellet(Pellet):
 
 class PelletGroup(object):
     def __init__(self, pelletfile):
+        self.script_dir = Path(__file__).parent
         self.pelletList = []
         self.powerpellets = []
         self.createPelletList(pelletfile)
@@ -59,7 +61,7 @@ class PelletGroup(object):
                     self.powerpellets.append(pp)
                     
     def readPelletfile(self, textfile):
-        return np.loadtxt(textfile, dtype='<U1')
+        return np.loadtxt(self.script_dir / 'assets' / textfile, dtype='<U1')
     
     def isEmpty(self):
         if len(self.pelletList) == 0:

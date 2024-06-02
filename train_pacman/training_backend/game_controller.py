@@ -12,10 +12,12 @@ from sprites import LifeSprites
 from sprites import MazeSprites
 from mazedata import MazeData
 import numpy as np
+from pathlib import Path
 
 class GameController(object):
     def __init__(self, debug):
         pygame.init()
+        self.script_dir = Path(__file__).parent
         self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
         self.background = None
         self.background_norm = None
@@ -285,7 +287,7 @@ class GameController(object):
 
     def load_and_initialize_grid(self, filename):
         """Load the maze from a text file and initialize the grid."""
-        with open(filename, 'r') as file:
+        with open(self.script_dir / 'assets' / filename, 'r') as file:
             content = file.read()
         
         # translation_table = str.maketrans({

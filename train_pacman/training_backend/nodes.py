@@ -2,6 +2,7 @@ import pygame
 from vector import Vector2
 from constants import *
 import numpy as np
+from pathlib import Path
 
 class Node(object):
     def __init__(self, x, y):
@@ -31,6 +32,7 @@ class Node(object):
 
 class NodeGroup(object):
     def __init__(self, level):
+        self.script_dir = Path(__file__).parent
         self.level = level
         self.nodesLUT = {}
         self.nodeSymbols = ['+', 'P', 'n']
@@ -42,7 +44,7 @@ class NodeGroup(object):
         self.homekey = None
 
     def readMazeFile(self, textfile):
-        return np.loadtxt(textfile, dtype='<U1')
+        return np.loadtxt(self.script_dir / 'assets'/ textfile, dtype='<U1')
 
     def createNodeTable(self, data, xoffset=0, yoffset=0):
         for row in list(range(data.shape[0])):

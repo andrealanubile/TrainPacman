@@ -1,4 +1,5 @@
 import pygame
+from pathlib import Path
 from vector import Vector2
 from constants import *
 
@@ -14,7 +15,8 @@ class Text(object):
         self.lifespan = time
         self.label = None
         self.destroy = False
-        self.setupFont("PressStart2P-Regular.ttf")
+        script_dir = Path(__file__).parent
+        self.setupFont(script_dir / "assets" / "PressStart2P-Regular.ttf")
         self.createLabel()
 
     def setupFont(self, fontpath):
