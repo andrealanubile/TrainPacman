@@ -9,6 +9,7 @@ import LifeSprites from './lifesprites';
 
 (async () =>
 {
+    const apiBaseUrl = process.env.APP_API_URL || 'train-pacman.com'
     const app = new Application();
 
     globalThis.__PIXI_APP__ = app;
@@ -22,7 +23,7 @@ import LifeSprites from './lifesprites';
 
     let data;
     try {
-        const response = await fetch('http://localhost:8000/api/initial-state/');
+        const response = await fetch(`http://${apiBaseUrl}/api/initial-state/`);
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -66,7 +67,7 @@ import LifeSprites from './lifesprites';
     app.stage.addChild(livesContainer);
 
     // Connect to WebSocket
-    const socket = new WebSocket('ws://localhost:8000/ws/pacman/');
+    const socket = new WebSocket(`ws://${apiBaseUrl}/ws/pacman/`);
 
     socket.onopen = () => {
         console.log('WebSocket connection established');
