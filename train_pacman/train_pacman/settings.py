@@ -152,5 +152,8 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 # }
 
 CORS_ALLOWED_ORIGINS = [
+    "http://96.126.98.198",
+    "http://train-pacman.com",
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
