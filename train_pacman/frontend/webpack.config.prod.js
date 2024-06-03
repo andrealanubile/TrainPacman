@@ -3,6 +3,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin')
 const HTMLWebpackPlugin = require('html-webpack-plugin')
 const TerserPlugin = require('terser-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const Dotenv = require('dotenv-webpack')
 
 module.exports = {
     mode: 'production',
@@ -50,6 +51,7 @@ module.exports = {
                 collapseWhitespace: true, // Ensures HTML is minified
                 removeComments: true      // Removes HTML comments
             }
-        })
+        }),
+        new Dotenv(),
     ]
 }
