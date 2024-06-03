@@ -1,10 +1,10 @@
 import pygame
 import random
 from pygame.locals import *
-from vector import Vector2
-from constants import *
-from entity import Entity
-from sprites import PacmanSprites
+from .vector import Vector2
+from .constants import *
+from .entity import Entity
+from .sprites import PacmanSprites
 
 class Pacman(Entity):
     def __init__(self, node):
@@ -63,6 +63,10 @@ class Pacman(Entity):
     #     directions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
     #     return random.choice(directions)
 
+    def getPos(self):
+        x = self.position.x
+        y = self.position.y
+        return x // TILEWIDTH, y // TILEHEIGHT
 
     def eatPellets(self, pelletList):
         for pellet in pelletList:

@@ -20,8 +20,20 @@ import LifeSprites from './lifesprites';
         background: 'black',
     });
 
-    const mazefile = await fetch('assets/maze1.txt').then(response => response.text());
-    const rotfile = await fetch('assets/maze1_rotation.txt').then(response => response.text());
+    let data;
+    try {
+        const response = await fetch('http://localhost:8000/api/initial-state/');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        data = await response.json();
+    } catch (fetchError) {
+        console.error('Error fetching initial coordinate:', fetchError);
+    }
+    let pacman_loc = JSON.parse(data['pacman_loc']);
+
+    const mazefile = await fetch('assets/maze0.txt').then(response => response.text());
+    const rotfile = await fetch('assets/maze0_rotation.txt').then(response => response.text());
     const pelletfile = await fetch('assets/pellets_mask.txt').then(response => response.text());
 
     const maze = new MazeSprites(mazefile, rotfile);
@@ -29,25 +41,56 @@ import LifeSprites from './lifesprites';
     const background = maze.constructBackground(0);
     app.stage.addChild(background);
 
-    const pellets = new Pellets(pelletfile);
-    const pelletsGraphics = pellets.drawPellets()
-    app.stage.addChild(pelletsGraphics);
+    let pellets = new Pellets(pelletfile);
+    app.stage.addChild(pellets.pellets);
 
     const pacman = new PacmanSprites();
     await pacman.loadSpritesheet();
-    const pacmanSprite = pacman.drawPacman(0);
+    const pacmanSprite = pacman.getSprite();
     app.stage.addChild(pacmanSprite);
+    pacman.drawPacman(pacman_loc[0], pacman_loc[1], 0);
+    // let sprite = pacman.getSprite();
+    // app.stage.addChild(sprite);
+    // pacman.drawPacman(0, 0, 0);
+    // pacman.changeImage();
 
-    const ghost = new GhostSprites('INKY', constants.CHASE, constants.RIGHT);
-    await ghost.loadSpritesheet();
-    const ghostSprite = ghost.drawGhost();
-    app.stage.addChild(ghostSprite);
+    // const ghost = new GhostSprites('INKY', constants.CHASE, constants.RIGHT);
+    // await ghost.loadSpritesheet();
+    // const ghostSprite = ghost.drawGhost();
+    // app.stage.addChild(ghostSprite);
 
     const lives = new LifeSprites();
     await lives.loadSpritesheet();
     lives.resetLives(4);
     const livesContainer = lives.drawLives();
     app.stage.addChild(livesContainer);
+
+    // Connect to WebSocket
+    const socket = new WebSocket('ws://localhost:8000/ws/pacman/');
+
+    socket.onopen = () => {
+        console.log('WebSocket connection established');
+    };
+
+    socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+
+    socket.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            pacman_loc = JSON.parse(data['pacman_loc']);
+            pacman.direction = data['pacman_direction'];
+            const pelletList = JSON.parse(data['pellets']);
+            // pellets.pelletList = pelletList;
+            pellets.setPelletList(pelletList);
+
+            pellets.drawPellets();
+            pacman.drawPacman(pacman_loc[0], pacman_loc[1], 1);
+        } catch (parseError) {
+            console.error('Error parsing WebSocket message:', parseError)
+        }
+    };
 
 
 })();

@@ -1,4 +1,4 @@
-from game_controller import GameController
+from training_backend.game_controller import GameController
 
 game = GameController(debug=False)
 game.startGame()

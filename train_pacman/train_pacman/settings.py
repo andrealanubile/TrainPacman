@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'channels',
     'rest_framework',
     'corsheaders',
-    'boxtest'
+    'training_backend'
 ]
 
 MIDDLEWARE = [

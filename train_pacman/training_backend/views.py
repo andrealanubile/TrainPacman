@@ -6,7 +6,7 @@ class InitialStateView(APIView):
     def get(self, request):
         r = redis.Redis(host='localhost', port=6379, db=0)
 
-        # x_coordinate = r.get('x_coordinate')
-        # if x_coordinate is None:
-        #     x_coordinate = 0
-        # return Response({'x_coordinate': float(x_coordinate)})
+        pacman_loc = r.get('pacman_loc')
+        if pacman_loc is None:
+            pacman_loc = (0, 0)
+        return Response({'pacman_loc': pacman_loc})

@@ -1,6 +1,6 @@
 import pygame
-from vector import Vector2
-from constants import *
+from .vector import Vector2
+from .constants import *
 import numpy as np
 from pathlib import Path
 
@@ -19,6 +19,9 @@ class Pellet(object):
             adjust = Vector2(TILEWIDTH, TILEHEIGHT) / 2
             p = self.position + adjust
             pygame.draw.circle(screen, self.color, p.asInt(), self.radius)
+
+    def getPos(self):
+        return self.position.x // TILEWIDTH, self.position.y // TILEHEIGHT
 
 
 class PowerPellet(Pellet):
@@ -71,3 +74,6 @@ class PelletGroup(object):
     def render(self, screen):
         for pellet in self.pelletList:
             pellet.render(screen)
+    
+    def getList(self):
+        return [p.getPos() for p in self.pelletList]

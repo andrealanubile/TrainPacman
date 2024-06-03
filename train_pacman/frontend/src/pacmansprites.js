@@ -8,7 +8,9 @@ class PacmanSprites extends Spritesheet {
         super();
         this.alive = true;
         this.direction = constants.LEFT;
-        this.image = this.getStartImage();
+        // this.image = this.getStartImage();
+        this.sprite = new Sprite();
+        this.sprite.anchor.set(0.5);
         this.animations = new Object()
         this.animations.left = new Animator([[8,0], [0, 0], [0, 2], [0, 0]])
         this.animations.right = new Animator([[10,0], [2, 0], [2, 2], [2, 0]])
@@ -25,40 +27,53 @@ class PacmanSprites extends Spritesheet {
         return this.getImage([8, 0])
     }
 
-    drawPacman(dt) {
+    getSprite() {
+        return this.sprite;
+    }
+
+    drawPacman(x, y, dt) {
+        let image;
+        let stopimage;
         if (this.alive) {
             switch (this.direction) {
                 case constants.LEFT:
-                    this.image = this.getImage(this.animations.left.update(dt));
-                    this.stopimage = [8, 0];
+                    image = this.getImage(this.animations.left.update(dt));
+                    stopimage = [8, 0];
                     break;
                 case constants.RIGHT:
-                    this.image = this.getImage(this.animations.right.update(dt));
-                    this.stopimage = [10, 0];
+                    image = this.getImage(this.animations.right.update(dt));
+                    stopimage = [10, 0];
                     break;
                 case constants.DOWN:
-                    this.image = this.getImage(this.animations.down.update(dt));
-                    this.stopimage = [8, 2]
+                    image = this.getImage(this.animations.down.update(dt));
+                    stopimage = [8, 2]
                     break;
                 case constants.UP:
-                    this.image = this.getImage(this.animations.up.update(dt));
-                    this.stopimage = [10, 2]
+                    image = this.getImage(this.animations.up.update(dt));
+                    stopimage = [10, 2]
                     break;
                 case constants.STOP:
-                    this.image = this.getImage(this.stopimage);
+                    image = this.getImage(this.stopimage);
                     
             }
         } else {
-            this.image = this.getImage(this.animations.death);
+            image = this.getImage(this.animations.death);
         }
 
-        let col = 13.5;
-        let row = 26;
-        let pacmanSprite = new Sprite(this.image);
-        pacmanSprite.anchor.set(0.5);
-        pacmanSprite.x = (col + 1/2) * constants.TILEWIDTH;
-        pacmanSprite.y = (row + 1/2) * constants.TILEHEIGHT;;
-        return pacmanSprite;
+        this.sprite.x = (x + 0.5) * constants.TILEWIDTH;
+        this.sprite.y = (y + 0.5) * constants.TILEHEIGHT;
+        this.sprite.texture = image;
+        
+        // let pacmanSprite = new Sprite();
+        // this.sprite = pacmanSprite;
+        // pacmanSprite.anchor.set(0.5);
+        // pacmanSprite.x = (col + 1/2) * constants.TILEWIDTH;
+        // pacmanSprite.y = (row + 1/2) * constants.TILEHEIGHT;;
+        // return pacmanSprite;
+    }
+
+    changeImage() {
+        this.sprite.texture = this.getImage(this.animations.up.update(0));
     }
 
 }

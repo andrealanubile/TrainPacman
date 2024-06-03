@@ -1,7 +1,7 @@
 import pygame
-from constants import *
+from .constants import *
 import numpy as np
-from animation import Animator
+from .animation import Animator
 from pathlib import Path
 
 BASETILEWIDTH = 16

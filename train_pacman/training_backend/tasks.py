@@ -4,9 +4,10 @@ import math
 import time
 import redis
 import json
+import numpy as np
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from game_controller import GameController
+from .game_controller import GameController
 
 @shared_task
 def update_state():
@@ -16,9 +17,24 @@ def update_state():
     game = GameController(debug=False)
     game.startGame()
 
-    pacman_loc = json.dumps(game.pacman.position.asTuple())
+    while True:
+        action = np.random.choice(np.arange(4))
+        _, state, _ = game.update(action)
+        pacman_loc = json.dumps(game.pacman.getPos())
+        pacman_direction = game.pacman.direction
+        pellets = json.dumps(game.pellets.getList())
+        r.set('pacman_loc', pacman_loc)
+        r.set('pacman_direction', pacman_direction)
+        r.set('pellets', pellets)
+        async_to_sync(channel_layer.group_send)(
+            'pacman_group',
+            {'type': 'state_update',
+             'pacman_loc': pacman_loc,
+             'pacman_direction': pacman_direction,
+             'pellets': pellets},
+        )
+        time.sleep(0.5)
 
-    r.set('pacman_loc', )
 
     # while True:
     #     x_coordinate = 50 * (1 + math.sin(time.time()))

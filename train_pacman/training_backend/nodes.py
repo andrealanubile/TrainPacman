@@ -1,6 +1,6 @@
 import pygame
-from vector import Vector2
-from constants import *
+from .vector import Vector2
+from .constants import *
 import numpy as np
 from pathlib import Path
 

@@ -1,5 +1,5 @@
-from game_controller import GameController
-from dqn_model import DQN, ReplayMemory, Transition
+from training_backend.game_controller import GameController
+from training_backend.dqn_model import DQN, ReplayMemory, Transition
 
 import math
 import matplotlib

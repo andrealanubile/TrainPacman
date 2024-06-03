@@ -1,4 +1,4 @@
-from constants import *
+from .constants import *
 
 class MazeBase(object):
     def __init__(self):

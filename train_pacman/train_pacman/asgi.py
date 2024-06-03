@@ -11,7 +11,7 @@ import os
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
-import boxtest.routing
+import training_backend.routing
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'train_pacman.settings')
 
@@ -19,7 +19,7 @@ application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket": AuthMiddlewareStack(
         URLRouter(
-            boxtest.routing.websocket_urlpatterns
+            training_backend.routing.websocket_urlpatterns
         )
     ),
 })

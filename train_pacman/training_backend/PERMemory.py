@@ -1,5 +1,5 @@
 import numpy as np
-from SumTree import SumTree
+from .SumTree import SumTree
 
 class PERMemory:
     def __init__(self, capacity, alpha):

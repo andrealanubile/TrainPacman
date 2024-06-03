@@ -1,4 +1,4 @@
-from constants import *
+from .constants import *
 
 class Animator(object):
     def __init__(self, frames=[], speed=20, loop=True):
