@@ -71,7 +71,7 @@ class Maze2(MazeBase):
 class MazeData(object):
     def __init__(self):
         self.obj = None
-        self.mazedict = {0:Maze0, 1:Maze1, 1:Maze2}
+        self.mazedict = {0:Maze0, 1:Maze1, 2:Maze2}
 
     def loadMaze(self, level):
         self.obj = self.mazedict[level%len(self.mazedict)]()

@@ -1,38 +1,33 @@
-import sys
 import pygame
 from pygame.locals import *
-import random
-import numpy as np
-import copy
-from collections import defaultdict
 from constants import *
 from pacman import Pacman
 from nodes import NodeGroup
 from pellets import PelletGroup
-from ghosts import GhostGroup
+from ghosts import GhostGroup, GhostGroup1
 from fruit import Fruit
 from pauser import Pause
 from text import TextGroup
 from sprites import LifeSprites
 from sprites import MazeSprites
 from mazedata import MazeData
-from qlearning_agent import QLearningAgent
-from print_progressbar import print_progress_bar
+import numpy as np
+from pathlib import Path
 
 class GameController(object):
-    def __init__(self):
+    def __init__(self, debug):
         pygame.init()
+        self.script_dir = Path(__file__).parent
         self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
         self.background = None
         self.background_norm = None
         self.background_flash = None
         self.clock = pygame.time.Clock()
         self.fruit = None
-        self.pause = Pause(False)  # Start the game unpaused
+        self.pause = Pause(False)
         self.level = 0
         self.lives = 5
         self.score = 0
-        self.pre_score = 0
         self.textgroup = TextGroup()
         self.lifesprites = LifeSprites(self.lives)
         self.flashBG = False
@@ -41,26 +36,29 @@ class GameController(object):
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
-        self.agent = QLearningAgent(action_space=['UP', 'DOWN', 'LEFT', 'RIGHT'])  # Initialize the agent
-        self.simulation_count = 0
-        self.max_simulations = 10000
-        self.last_action = None
-        self.last_state = None
-        self.grid = None
-        self.initial_grid = None
         self.initial_pellet_positions = set()
+        self.debug = debug
 
-    def startGame(self):
-        print('Starting game')
+    def setBackground(self):
+        self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
+        self.background_norm.fill(BLACK)
+        self.background_flash = pygame.surface.Surface(SCREENSIZE).convert()
+        self.background_flash.fill(BLACK)
+        self.background_norm = self.mazesprites.constructBackground(self.background_norm, self.level%5)
+        self.background_flash = self.mazesprites.constructBackground(self.background_flash, 5)
+        self.flashBG = False
+        self.background = self.background_norm
+
+    def startGame(self):      
         self.mazedata.loadMaze(self.level)
-        self.mazesprites = MazeSprites(self.mazedata.obj.name + ".txt", self.mazedata.obj.name + "_rotation.txt")
+        self.mazesprites = MazeSprites(self.mazedata.obj.name+".txt", self.mazedata.obj.name+"_rotation.txt")
         self.setBackground()
-        self.nodes = NodeGroup(self.mazedata.obj.name + ".txt")
+        self.nodes = NodeGroup(self.mazedata.obj.name+".txt")
         self.mazedata.obj.setPortalPairs(self.nodes)
         self.mazedata.obj.connectHomeNodes(self.nodes)
         self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
-        self.pellets = PelletGroup(self.mazedata.obj.name + ".txt")
-        self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman)
+        self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
+        self.ghosts = GhostGroup1(self.nodes.getStartTempNode(), self.pacman)
 
         self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
         self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(0, 3)))
@@ -74,91 +72,41 @@ class GameController(object):
         self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
 
-        # Load and initialize grid from the maze file
-        if not self.load_and_initialize_grid(self.mazedata.obj.name + ".txt"):
-            print("Failed to initialize grid.")
-            return
+        self.load_and_initialize_grid(self.mazedata.obj.name + ".txt")
 
         # Store initial pellet positions
         for pellet in self.pellets.pelletList:
             plx, ply = int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)
             self.initial_pellet_positions.add((plx, ply))
 
-        self.update_grid()
-        # self.print_grid()
+        
 
-    def setBackground(self):
-        self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
-        self.background_norm.fill(BLACK)
-        self.background_flash = pygame.surface.Surface(SCREENSIZE).convert()
-        self.background_flash.fill(BLACK)
-        self.background_norm = self.mazesprites.constructBackground(self.background_norm, self.level % 5)
-        self.background_flash = self.mazesprites.constructBackground(self.background_flash, 5)
-        self.flashBG = False
-        self.background = self.background_norm
-
-    def resetGame(self):
-        self.level = 0
-        self.lives = 5
-        self.score = 0
-        self.pre_score = 0  # Reset previous score
-        self.textgroup.updateScore(self.score)
-        self.textgroup.updateLevel(self.level)
-        self.lifesprites.resetLives(self.lives)
-        self.fruitCaptured = []
-        self.startGame()
-        self.showEntities()
-
-    def update(self):
-        self.update_grid()
-        # self.print_grid()
-        if self.simulation_count >= self.max_simulations:
-            self.agent.save_policy('q_learning_policy.pkl')
-            print('Policy Saved')
-            pygame.quit()
-            sys.exit()
-            return
-
-        dt = self.clock.tick(1000) / 100
+    def update(self, action, dt=1):
+        # dt = self.clock.tick(30) / 1000.0
+        actions_mapping = {
+            0: 'UP',
+            1: 'DOWN',
+            2: 'LEFT',
+            3: 'RIGHT'
+        }
+        if self.debug:
+            print(f'action: {actions_mapping[action]}')
         self.textgroup.update(dt)
         self.pellets.update(dt)
+        pellet_eaten = False
         if not self.pause.paused:
             self.ghosts.update(dt)
+            self.checkGhostEvents()     
             if self.fruit is not None:
                 self.fruit.update(dt)
-            self.checkPelletEvents()
-            self.checkGhostEvents()
-            self.checkFruitEvents()
-
-        if self.pacman.alive:
-            if not self.pause.paused:
-                # Get current state
-                state = self.grid_to_state()
-                self.last_state = state
-                # Agent chooses action
-                action = self.agent.choose_action(state)
-                print(action)
-                self.last_action = action
-                self.pacman.update(dt, action)
-                # Get new state and reward
-                new_state = self.grid_to_state()
-                reward = self.get_reward()
-                # print(f"Action: {action}, Reward: {reward}, Score: {self.score}")
-                # Update Q-values
-                self.agent.update_q_values(state, action, reward, new_state)
-        else:
-            self.pacman.update(dt,self.last_action)
-            reward = self.get_reward()
-            new_state = self.grid_to_state()
-            self.agent.update_q_values(self.last_state, self.last_action, reward, new_state)
-            if self.lives <= 0:
-                self.simulation_count += 1
-                print_progress_bar(self.simulation_count, self.max_simulations, prefix='Progress:', suffix='Complete', length=50)  # Update the progress bar
-                
-                self.resetGame()
+            if self.pacman.alive:
+                self.pacman.update(dt, actions_mapping[action])
+                pellet_eaten = self.checkPelletEvents()
+                self.checkGhostEvents()
+                self.checkFruitEvents()
             else:
-                self.lives -= 1
-                self.pacman.reset()
+                pass
+            
 
         if self.flashBG:
             self.flashTimer += dt
@@ -172,22 +120,39 @@ class GameController(object):
         afterPauseMethod = self.pause.update(dt)
         if afterPauseMethod is not None:
             afterPauseMethod()
-        self.pre_score = copy.copy(self.score) # Save previous score
         self.checkEvents()
         self.render()
 
-    def grid_to_state(self):
-        """Convert the grid to a state representation for Q-learning."""
-        return tuple([cell for row in self.grid for cell in row])
+        reward = self.get_reward(pellet_eaten)
+        state = self.get_state()
+        
+        if self.debug:
+            print(f'reward: {reward}')
+            print(f'pacman loc: {np.argwhere(state[2])}')
+            print(f'num pellets: {np.sum(state[1])}')
 
-    def get_reward(self):
-        """Calculate the reward based on the game state."""
-        diff_score = self.score - self.pre_score  # Calculate score difference
         if not self.pacman.alive:
-            return -10000000000000  # Negative reward for dying
-        if self.pellets.isEmpty():
-            return 100000000000000  # Positive reward for collecting all pellets
-        return diff_score  # Return the score difference as the reward
+            self.resetLevel()
+        done = False
+        if self.lives <= 0:
+            done = True
+        return reward, state, done
+
+    def get_reward(self, pellet_eaten):
+        """Calculate the reward based on the game state."""
+        
+        reward = 0
+        if pellet_eaten:
+            reward += 10
+
+        else:
+            reward -= 1
+            
+        if not self.pacman.alive:
+            reward -= 100  # Negative reward for dying
+        elif self.pellets.isEmpty():
+            reward += 1000  # Positive reward for collecting all pellets
+        return reward  # Return the score difference as the reward
 
     def checkEvents(self):
         for event in pygame.event.get():
@@ -220,6 +185,9 @@ class GameController(object):
                 self.flashBG = True
                 self.hideEntities()
                 self.pause.setPause(pauseTime=3, func=self.nextLevel)
+            return True
+        else:
+            return False
 
     def checkGhostEvents(self):
         for ghost in self.ghosts:
@@ -230,7 +198,7 @@ class GameController(object):
                     self.updateScore(ghost.points)                  
                     self.textgroup.addText(str(ghost.points), WHITE, ghost.position.x, ghost.position.y, 8, time=1)
                     self.ghosts.updatePoints()
-                    self.pause.setPause(pauseTime=1, func=self.showEntities)
+                    self.pause.setPause(pauseTime=0, func=self.showEntities)
                     ghost.startSpawn()
                     self.nodes.allowHomeAccess(ghost)
                 elif ghost.mode.current is not SPAWN:
@@ -240,17 +208,18 @@ class GameController(object):
                         self.pacman.die()               
                         self.ghosts.hide()
                         if self.lives <= 0:
-                            print(self.lives)
                             self.textgroup.showText(GAMEOVERTXT)
-                            self.pause.setPause(pauseTime=3, func=self.restartGame)
+                            # self.pause.setPause(pauseTime=3, func=self.restartGame)
+                            # self.pause.setPause(pauseTime=0)
                         else:
-                            self.pause.setPause(pauseTime=3, func=self.resetLevel)
+                            # self.pause.setPause(pauseTime=0, func=self.resetLevel)
+                            pass
     
     def checkFruitEvents(self):
         if self.pellets.numEaten == 50 or self.pellets.numEaten == 140:
             if self.fruit is None:
                 self.fruit = Fruit(self.nodes.getNodeFromTiles(9, 20), self.level)
-                print(self.fruit)
+                # print(self.fruit)
         if self.fruit is not None:
             if self.pacman.collideCheck(self.fruit):
                 self.updateScore(self.fruit.points)
@@ -277,23 +246,22 @@ class GameController(object):
     def nextLevel(self):
         self.showEntities()
         self.level += 1
-        self.pause.paused = True
+        self.pause.paused = False
         self.startGame()
         self.textgroup.updateLevel(self.level)
 
     def restartGame(self):
-        self.level = 0
         self.lives = 5
+        self.level = 0
+        self.pause.paused = False
+        self.fruit = None
+        self.startGame()
         self.score = 0
-        self.pre_score = 0  # Reset previous score
         self.textgroup.updateScore(self.score)
         self.textgroup.updateLevel(self.level)
+        self.textgroup.showText(READYTXT)
         self.lifesprites.resetLives(self.lives)
         self.fruitCaptured = []
-        self.startGame()
-        self.showEntities()
-        self.agent.epsilon = max(self.agent.epsilon*self.agent.epsilon_decay,self.agent.min_exploration_rate)  # Decrease exploration rate after each game
-        print(self.agent.epsilon)
 
     def resetLevel(self):
         self.pause.paused = False
@@ -327,74 +295,88 @@ class GameController(object):
             self.screen.blit(self.fruitCaptured[i], (x, y))
 
         pygame.display.update()
-    
+
+
     def load_and_initialize_grid(self, filename):
         """Load the maze from a text file and initialize the grid."""
         with open(filename, 'r') as file:
             content = file.read()
         
-        translation_table = str.maketrans({
-            'X': 'x', '0': 'x', '1': 'x', '2': 'x', '3': 'x',
-            '4': 'x', '5': 'x', '6': 'x', '7': 'x', '8': 'x',
-            '9': 'x', '=': 'x', 'n': '/', '-': '/', 'l': '/',
-            '.': '.', '+': '.', 'p': 'o','|':'/'
-        })
+        # translation_table = str.maketrans({
+        #     'X': 'x', '0': 'x', '1': 'x', '2': 'x', '3': 'x',
+        #     '4': 'x', '5': 'x', '6': 'x', '7': 'x', '8': 'x',
+        #     '9': 'x', '=': 'x', 'n': '/', '-': '/', 'l': '/',
+        #     '.': '.', '+': '.', 'p': 'o','|':'/'
+        # })
         
-        self.transformed_text = content.translate(translation_table)
+        # self.transformed_text = content.translate(translation_table)
+        self.transformed_text = content
         
         # Create the grid, keeping the spaces intact
-        self.grid = [list(line.replace(' ', '')) for line in self.transformed_text.split('\n')]
-        self.initial_grid = [row[:] for row in self.grid]  # Save initial grid state
+        self.grid = [list(line.replace(' ', '')) for line in self.transformed_text.split('\n') if line.strip()]
+        self.initial_grid = np.array([row[:] for row in self.grid])  # Save initial grid state
+        self.rows_use = np.where(np.logical_not(np.all(self.initial_grid == 'X', axis=1)))[0]
+        self.cols_use = np.where(np.logical_not(np.all(self.initial_grid == 'X', axis=0)))[0]
+
         return True
 
-    def print_grid(self):
-        """Print the current state of the grid."""
-        for row in self.grid:
-            print("".join(row))
 
-    def update_grid(self):
+    def get_state(self):
         """Update the grid with the current state of the maze."""
         # Reset the grid to its initial state
-        self.grid = [row[:] for row in self.initial_grid]  # Reset grid to initial state
+        # Determine the dimensions of the initial grid
+        num_rows = len(self.initial_grid)
+        num_cols = len(self.initial_grid[0]) if num_rows > 0 else 0
+
+        # Create a matrix of all zeros with the same dimensions as the initial grid
+        # self.grid_bin_pellet = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        # self.grid_bin_fruit = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        # self.grid_bin_ghost = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+        # self.grid_bin_pacman = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
+
+        state = np.zeros((4, num_rows, num_cols))
+
+        # Wall state
+        state[0][np.char.isnumeric(self.initial_grid)] = 1
+
 
         # Update pellet positions
-        current_pellet_positions = {(int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)) for pellet in self.pellets.pelletList}
-
-        eaten_pellets = self.initial_pellet_positions - current_pellet_positions
-        for (plx, ply) in eaten_pellets:
-            self.grid[ply][plx] = "/"
+        # current_pellet_positions = {(int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)) for pellet in self.pellets.pelletList}
 
         for pellet in self.pellets.pelletList:
             plx, ply = int(pellet.position.x // TILEWIDTH), int(pellet.position.y // TILEHEIGHT)
-            if pellet.visible:
-                self.grid[ply][plx] = "o" if pellet.name == "POWERPELLET" else "."
+            if pellet.name == 'POWERPELLET':
+                state[1, ply, plx] = 1 
             else:
-                self.grid[ply][plx] = "/"
+                state[1, ply, plx] = 1
 
         # Update fruit position
-        if self.fruit is not None:
-            fx, fy = int(self.fruit.position.x // TILEWIDTH), int(self.fruit.position.y // TILEHEIGHT)
-            self.grid[fy][fx] = "F"
+        # if self.fruit is not None:
+        #     fx, fy = int(self.fruit.position.x // TILEWIDTH), int(self.fruit.position.y // TILEHEIGHT)
+        #     self.grid_bin_fruit[fy][fx] = 1
 
         # Update ghost positions
         for ghost in self.ghosts:
             gx, gy = int(ghost.position.x // TILEWIDTH), int(ghost.position.y // TILEHEIGHT)
             if ghost.mode.current == FREIGHT:
-                self.grid[gy][gx] = "f"  # Ghosts in frightened mode
+                state[3,gy,gx] = 1  # Ghosts in frightened mode
             elif ghost.mode.current == SPAWN:
-                self.grid[gy][gx] = "s"  # Ghosts returning to the spawn point
+                state[3,gy,gx] = 1  # Ghosts returning to the spawn point
             else:
-                self.grid[gy][gx] = "G"  # Normal mode
+                state[3,gy,gx] = 1  # Normal mode
 
         # Update Pac-Man position
         px, py = int(self.pacman.position.x // TILEWIDTH), int(self.pacman.position.y // TILEHEIGHT)
-        self.grid[py][px] = "P"
+        state[2, py, px] = 1
+
+        state = state[:, np.min(self.rows_use):np.max(self.rows_use)+1, np.min(self.cols_use):np.max(self.cols_use)+1]
+
+        return state
 
 
-if __name__ == "__main__":
-    game = GameController()
-    game.startGame()
-    while True:
-        game.update()
+# if __name__ == "__main__":
+#     game = GameController()
+#     game.startGame()
+#     while True:
+#         game.update()
 
-    

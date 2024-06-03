@@ -20,6 +20,6 @@ class Pause(object):
         self.func = func
         self.pauseTime = pauseTime
         self.flip()
-
+        
     def flip(self):
         self.paused = not self.paused

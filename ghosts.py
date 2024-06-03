@@ -176,8 +176,8 @@ class GhostGroup1(object):
         self.pinky = Pinky(node, pacman)
         self.inky = Inky(node, pacman, self.blinky)
         self.clyde = Clyde(node, pacman)
-        self.ghosts = []
-        # self.ghosts = [self.blinky]
+        # self.ghosts = []
+        self.ghosts = [self.blinky]
 
     def __iter__(self):
         return iter(self.ghosts)
