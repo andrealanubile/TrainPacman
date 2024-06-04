@@ -63,11 +63,6 @@ class Pacman(Entity):
     #     directions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
     #     return random.choice(directions)
 
-    def getPos(self):
-        x = self.position.x
-        y = self.position.y
-        return x // TILEWIDTH, y // TILEHEIGHT
-
     def eatPellets(self, pelletList):
         for pellet in pelletList:
             if self.collideCheck(pellet):

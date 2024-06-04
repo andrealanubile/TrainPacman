@@ -72,10 +72,6 @@ class PacmanSprites extends Spritesheet {
         // return pacmanSprite;
     }
 
-    changeImage() {
-        this.sprite.texture = this.getImage(this.animations.up.update(0));
-    }
-
 }
 
 export default PacmanSprites;

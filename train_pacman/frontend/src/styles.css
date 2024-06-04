@@ -2,6 +2,7 @@ body {
     margin: 0;
     padding: 0;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100vh;
@@ -17,4 +18,29 @@ body {
     align-items: center;
     background-color: #fff;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    /* top: 10px;
+    left: 10px; */
+}
+
+.button_plus, .button_minus {
+    padding: 10px 20px;
+    margin: 5px;
+    font-size: 25px;
+    color: white;
+    background-color: #04AA6D;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    width: 100px;
+    box-sizing: border-box;
+}
+
+.button_minus {
+    background-color: #ab0404;
 }

@@ -1,6 +1,7 @@
 from training_backend.game_controller import GameController
 from training_backend.dqn_model import DQN, ReplayMemory, Transition
 
+import os
 import math
 import matplotlib
 import matplotlib.pyplot as plt
@@ -15,6 +16,7 @@ import torch.nn.functional as F
 import numpy as np
 import sys
 from tqdm import tqdm
+import pandas as pd
 
 global debug
 debug = False
@@ -83,10 +85,51 @@ def plot_rewards(show_result=False):
         means = torch.cat((torch.zeros(99), means))
         ax1.plot(means.numpy())
 
+    # Convert episode_eps to CPU and then to numpy for plotting
+    episode_eps_cpu = [eps.cpu().numpy() for eps in episode_eps]
     ax2.set_ylabel('Exploration rate')
-    ax2.plot(episode_eps)
+    ax2.plot(episode_eps_cpu)
 
     plt.pause(0.001)  # pause a bit so that plots are updated
+
+
+def convert_to_list(mixed_list):
+    converted_list = []
+    for item in mixed_list:
+        if isinstance(item, torch.Tensor):
+            converted_list.extend(item.cpu().numpy().tolist())
+        elif isinstance(item, (list, tuple)):
+            converted_list.extend(convert_to_list(item))  # Recursively handle nested lists
+        else:
+            converted_list.append(item)
+    return converted_list
+
+def save_results():
+    # Convert all tensors to lists
+    episode_rewards_list = convert_to_list(episode_rewards)
+    episode_eps_list = convert_to_list(episode_eps)
+    episode_scores_list = convert_to_list(episode_scores)
+
+    # Create a DataFrame
+    data = {
+        'Episode Rewards': episode_rewards_list,
+        'Episode EPS': episode_eps_list,
+        'Episode Scores': episode_scores_list
+    }
+    df = pd.DataFrame(data)
+
+    # Define the directory and filename
+    results_dir = 'Results'
+    csv_filename = f'Results_data_{LEVEL}.csv'
+    
+    # Construct the full file path
+    file_path = os.path.join(results_dir, csv_filename)
+
+    # Save DataFrame to CSV in the specified directory
+    df.to_csv(file_path, index=False)
+
+    print(f"Data saved to {file_path}")
+
 
 
 def select_action(state, exploration_rate):
@@ -99,11 +142,12 @@ def select_action(state, exploration_rate):
             return policy_net(state).max(1).indices.view(1, 1)
     else:
         return torch.tensor(np.random.choice(np.arange(n_actions)), device=device, dtype=torch.long).view(1, 1)
+        
 
 
 if __name__ == '__main__':
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device('cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device('cpu')
     np.set_printoptions(threshold=sys.maxsize, linewidth=200)
 
     BATCH_SIZE = 128
@@ -115,12 +159,13 @@ if __name__ == '__main__':
     TAU = 0.005
     LR = 1e-4
     NUM_EPISODES = 3000
-    HORIZON = 200
+    HORIZON = None
+    LEVEL = 0
 
-    game = GameController(debug)
+    game = GameController(debug,LEVEL)
     game.startGame()
 
-    state_dim = (3, len(game.rows_use), len(game.cols_use))  # assuming grid size (channels, height, width)
+    state_dim = (4, len(game.rows_use), len(game.cols_use))  # assuming grid size (channels, height, width)
     n_actions = 4  # UP, DOWN, LEFT, RIGHT
 
     policy_net = DQN(state_dim, n_actions).to(device)
@@ -134,6 +179,7 @@ if __name__ == '__main__':
 
     episode_rewards = []
     episode_eps = []
+    episode_scores = []
 
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
@@ -151,6 +197,8 @@ if __name__ == '__main__':
             reward, next_state, done = game.update(action.item())
             reward = torch.tensor([reward], device=device)
             episode_reward += reward
+            episode_score = torch.tensor([game.score], device=device)
+            # print(episode_reward)
 
             if done:
                 next_state = None
@@ -158,7 +206,9 @@ if __name__ == '__main__':
                 next_state = torch.tensor(next_state, dtype=torch.float32, device=device).unsqueeze(0)
 
             # Store the transition in memory
+                
             memory.push(state, action, next_state, reward)
+                
 
             # Move to the next state
             state = next_state
@@ -174,20 +224,23 @@ if __name__ == '__main__':
                 target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
             target_net.load_state_dict(target_net_state_dict)
 
-            if t is not None:
+            if HORIZON is not None:
                 if t > HORIZON:
                     episode_rewards.append(episode_reward)
-                    episode_eps.append(exploration_rate)
+                    episode_eps.append(torch.tensor([exploration_rate], device=device))
+                    episode_scores.append(episode_score)
                     plot_rewards()
                     break
 
             if done:
                 episode_rewards.append(episode_reward)
-                episode_eps.append(exploration_rate)
+                episode_eps.append(torch.tensor([exploration_rate], device=device))
+                episode_scores.append(episode_score)
                 plot_rewards()
                 break
 
     torch.save(policy_net.state_dict(), 'dqn_model.pth')
+    save_results()
 
     print('Complete')
     plot_rewards(show_result=True)

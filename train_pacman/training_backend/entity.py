@@ -10,7 +10,7 @@ class Entity(object):
         self.directions = {UP:Vector2(0, -1),DOWN:Vector2(0, 1), 
                           LEFT:Vector2(-1, 0), RIGHT:Vector2(1, 0), STOP:Vector2()}
         self.direction = STOP
-        self.setSpeed(100)
+        self.setSpeed(16)
         self.radius = 10
         self.collideRadius = 5
         self.color = WHITE
@@ -125,3 +125,8 @@ class Entity(object):
             else:
                 p = self.position.asInt()
                 pygame.draw.circle(screen, self.color, p, self.radius)
+    
+    def getPos(self):
+        x = self.position.x
+        y = self.position.y
+        return x // TILEWIDTH, y // TILEHEIGHT

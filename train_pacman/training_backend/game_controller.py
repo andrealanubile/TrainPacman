@@ -15,7 +15,7 @@ import numpy as np
 from pathlib import Path
 
 class GameController(object):
-    def __init__(self, debug):
+    def __init__(self, debug, level, reward_type='pretrain'):
         pygame.init()
         self.script_dir = Path(__file__).parent
         self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
@@ -25,7 +25,8 @@ class GameController(object):
         self.clock = pygame.time.Clock()
         self.fruit = None
         self.pause = Pause(False)
-        self.level = 0
+        self.level = level
+        self.initial_level = level
         self.lives = 5
         self.score = 0
         self.textgroup = TextGroup()
@@ -38,6 +39,7 @@ class GameController(object):
         self.mazedata = MazeData()
         self.initial_pellet_positions = set()
         self.debug = debug
+        self.reward_type = reward_type
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -95,13 +97,18 @@ class GameController(object):
         self.pellets.update(dt)
         pellet_eaten = False
         if not self.pause.paused:
-            self.ghosts.update(dt)      
+            self.ghosts.update(dt)
+            self.checkGhostEvents()     
             if self.fruit is not None:
                 self.fruit.update(dt)
-            self.pacman.update(dt, actions_mapping[action])
-            pellet_eaten = self.checkPelletEvents()
-            self.checkGhostEvents()
-            self.checkFruitEvents()
+            if self.pacman.alive:
+                self.pacman.update(dt, actions_mapping[action])
+                pellet_eaten = self.checkPelletEvents()
+                self.checkGhostEvents()
+                self.checkFruitEvents()
+            else:
+                pass
+            
 
         if self.flashBG:
             self.flashTimer += dt
@@ -118,14 +125,18 @@ class GameController(object):
         self.checkEvents()
         self.render()
 
-        state = self.get_state()
         reward = self.get_reward(pellet_eaten)
+        state = self.get_state()
+        
         if self.debug:
             print(f'reward: {reward}')
             print(f'pacman loc: {np.argwhere(state[2])}')
             print(f'num pellets: {np.sum(state[1])}')
+
+        if not self.pacman.alive:
+            self.resetLevel()
         done = False
-        if self.lives <= 0:
+        if (self.lives <= 0) or (self.pellets.isEmpty()):
             done = True
         return reward, state, done
 
@@ -133,14 +144,21 @@ class GameController(object):
         """Calculate the reward based on the game state."""
         
         reward = 0
-        if pellet_eaten:
-            reward += 1
+
+        if self.reward_type == 'pretrain':
+            if pellet_eaten:
+                reward += 10
+            else:
+                reward -= 1
+        elif self.reward_type == 'hf':
+            pass
+        else:
+            print('Warning: invalid reward type')
             
         if not self.pacman.alive:
             reward -= 100  # Negative reward for dying
         elif self.pellets.isEmpty():
-            reward += 100  # Positive reward for collecting all pellets
-        # print(reward)
+            reward += 1000  # Positive reward for collecting all pellets
         return reward  # Return the score difference as the reward
 
     def checkEvents(self):
@@ -173,7 +191,7 @@ class GameController(object):
             if self.pellets.isEmpty():
                 self.flashBG = True
                 self.hideEntities()
-                self.pause.setPause(pauseTime=3, func=self.nextLevel)
+                # self.pause.setPause(pauseTime=3, func=self.nextLevel)
             return True
         else:
             return False
@@ -187,7 +205,7 @@ class GameController(object):
                     self.updateScore(ghost.points)                  
                     self.textgroup.addText(str(ghost.points), WHITE, ghost.position.x, ghost.position.y, 8, time=1)
                     self.ghosts.updatePoints()
-                    self.pause.setPause(pauseTime=1, func=self.showEntities)
+                    self.pause.setPause(pauseTime=0, func=self.showEntities)
                     ghost.startSpawn()
                     self.nodes.allowHomeAccess(ghost)
                 elif ghost.mode.current is not SPAWN:
@@ -199,9 +217,10 @@ class GameController(object):
                         if self.lives <= 0:
                             self.textgroup.showText(GAMEOVERTXT)
                             # self.pause.setPause(pauseTime=3, func=self.restartGame)
-                            self.pause.setPause(pauseTime=3)
+                            # self.pause.setPause(pauseTime=0)
                         else:
-                            self.pause.setPause(pauseTime=3, func=self.resetLevel)
+                            # self.pause.setPause(pauseTime=0, func=self.resetLevel)
+                            pass
     
     def checkFruitEvents(self):
         if self.pellets.numEaten == 50 or self.pellets.numEaten == 140:
@@ -240,7 +259,7 @@ class GameController(object):
 
     def restartGame(self):
         self.lives = 5
-        self.level = 0
+        self.level = self.initial_level
         self.pause.paused = False
         self.fruit = None
         self.startGame()
@@ -322,7 +341,7 @@ class GameController(object):
         # self.grid_bin_ghost = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
         # self.grid_bin_pacman = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
 
-        state = np.zeros((3, num_rows, num_cols))
+        state = np.zeros((4, num_rows, num_cols))
 
         # Wall state
         state[0][np.char.isnumeric(self.initial_grid)] = 1
@@ -344,14 +363,14 @@ class GameController(object):
         #     self.grid_bin_fruit[fy][fx] = 1
 
         # Update ghost positions
-        # for ghost in self.ghosts:
-        #     gx, gy = int(ghost.position.x // TILEWIDTH), int(ghost.position.y // TILEHEIGHT)
-        #     if ghost.mode.current == FREIGHT:
-        #         self.grid_bin_ghost[gy][gx] = 1  # Ghosts in frightened mode
-        #     elif ghost.mode.current == SPAWN:
-        #         self.grid_bin_ghost[gy][gx] = 1  # Ghosts returning to the spawn point
-        #     else:
-        #         self.grid_bin_ghost[gy][gx] = 1  # Normal mode
+        for ghost in self.ghosts:
+            gx, gy = int(ghost.position.x // TILEWIDTH), int(ghost.position.y // TILEHEIGHT)
+            if ghost.mode.current == FREIGHT:
+                state[3,gy,gx] = 1  # Ghosts in frightened mode
+            elif ghost.mode.current == SPAWN:
+                state[3,gy,gx] = 1  # Ghosts returning to the spawn point
+            else:
+                state[3,gy,gx] = 1  # Normal mode
 
         # Update Pac-Man position
         px, py = int(self.pacman.position.x // TILEWIDTH), int(self.pacman.position.y // TILEHEIGHT)
@@ -367,6 +386,3 @@ class GameController(object):
 #     game.startGame()
 #     while True:
 #         game.update()
-
-
-

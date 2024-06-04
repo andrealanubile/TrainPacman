@@ -1,9 +1,9 @@
 from django.core.management.base import BaseCommand
-from training_backend.tasks import update_state
+from training_backend.tasks import run_train
 
 class Command(BaseCommand):
-    help = 'Starts the update_state task'
+    help = 'Starts the run_train task'
 
     def handle(self, *args, **kwargs):
-        update_state.delay()
-        self.stdout.write(self.style.SUCCESS('Started update_state task'))
+        run_train.delay()
+        self.stdout.write(self.style.SUCCESS('Started run_train task'))

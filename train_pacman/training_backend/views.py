@@ -9,4 +9,8 @@ class InitialStateView(APIView):
         pacman_loc = r.get('pacman_loc')
         if pacman_loc is None:
             pacman_loc = (0, 0)
-        return Response({'pacman_loc': pacman_loc})
+        ghost_loc = r.get('ghost_loc')
+        if ghost_loc is None:
+            ghost_loc = (0, 0)
+        return Response({'pacman_loc': pacman_loc,
+                         'ghost_loc': ghost_loc})
