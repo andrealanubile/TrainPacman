@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import random
+import pickle
 from collections import namedtuple, deque
 
 Transition = namedtuple('Transition',
@@ -49,3 +50,30 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
+
+
+class ReplayMemoryRedis(object):
+    def __init__(self, r, capacity=None):
+        self.capacity = capacity
+        self.r = r
+        self.key = 'replay_memory'
+
+    def push(self, *args):
+        transition = Transition(*args)
+        serialized_transition = pickle.dumps(transition)
+        self.r.lpush(self.key, serialized_transition)
+        # Ensure the memory does not exceed capacity
+        if self.r.llen(self.key) > self.capacity:
+            self.r.rpop(self.key)
+
+    def sample(self, batch_size):
+        length = self.r.llen(self.key)
+        indices = random.sample(range(length), batch_size)
+        serialized_samples = [self.r.lindex(self.key, i) for i in indices]
+        return [pickle.loads(sample) for sample in serialized_samples]
+
+    def clear(self):
+        self.r.delete(self.key)
+    
+    def __len__(self):
+        return self.r.llen(self.key)

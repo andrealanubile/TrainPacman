@@ -162,7 +162,7 @@ if __name__ == '__main__':
     HORIZON = None
     LEVEL = 0
 
-    game = GameController(debug,LEVEL)
+    game = GameController(debug,LEVEL, reward_type='pretrain')
     game.startGame()
 
     state_dim = (4, len(game.rows_use), len(game.cols_use))  # assuming grid size (channels, height, width)
@@ -239,7 +239,10 @@ if __name__ == '__main__':
                 plot_rewards()
                 break
 
-    torch.save(policy_net.state_dict(), 'dqn_model.pth')
+        if i_episode % 600 == 0:
+            torch.save(policy_net.state_dict(), f'dqn_checkpoint_iter_{i_episode}.pt') 
+
+    torch.save(policy_net.state_dict(), 'dqn_model.pt')
     save_results()
 
     print('Complete')

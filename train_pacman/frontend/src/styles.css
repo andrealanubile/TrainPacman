@@ -9,7 +9,7 @@ body {
     background-color: #f0f0f0;
 }
 
-.pixi-container {
+#pixi-container {
     width: 458px;
     height: 586px;
     border: 2px solid #ccc;

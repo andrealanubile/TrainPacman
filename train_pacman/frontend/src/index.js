@@ -18,6 +18,7 @@ import LifeSprites from './lifesprites';
         canvas: document.getElementById('pixiCanvas'),
         width: constants.SCREENWIDTH,
         height: constants.SCREENHEIGHT,
+        // resizeTo: document.getElementById('pixi-container'),
         background: 'black',
     });
 
