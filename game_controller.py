@@ -15,7 +15,7 @@ import numpy as np
 from pathlib import Path
 
 class GameController(object):
-    def __init__(self, debug):
+    def __init__(self, debug, level):
         pygame.init()
         self.script_dir = Path(__file__).parent
         self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
@@ -25,7 +25,8 @@ class GameController(object):
         self.clock = pygame.time.Clock()
         self.fruit = None
         self.pause = Pause(False)
-        self.level = 0
+        self.level = level
+        self.initial_level = level
         self.lives = 5
         self.score = 0
         self.textgroup = TextGroup()
@@ -252,7 +253,7 @@ class GameController(object):
 
     def restartGame(self):
         self.lives = 5
-        self.level = 0
+        self.level = self.initial_level
         self.pause.paused = False
         self.fruit = None
         self.startGame()
