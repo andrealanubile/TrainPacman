@@ -11,6 +11,13 @@ import ScoreText from './scoretxt';
 
 (async () =>
 {
+    // function getActualPixels(element) {
+    //     const rect = element.getBoundingClientRect();
+    //     const width = rect.width * window.devicePixelRatio;
+    //     const height = rect.height * window.devicePixelRatio;
+    //     return { width, height };
+    // }
+
     const apiBaseUrl = process.env.APP_API_URL || 'train-pacman.com'
     const app = new Application();
 
@@ -18,19 +25,23 @@ import ScoreText from './scoretxt';
 
     const pixiContainer = document.getElementById('pixi-container');
     const pixiCanvas = document.getElementById('pixiCanvas');
-    const { width, height } = pixiContainer.getBoundingClientRect();
+    // const { width, height } = pixiContainer.getBoundingClientRect();
+    // const { width, height } = getActualPixels(pixiContainer);
 
-    const scaleX = width / constants.SCREENWIDTH;
-    const scaleY = height / constants.SCREENHEIGHT;
+    const fixedWidth = constants.SCREENWIDTH;
+    const fixedHeight = constants.SCREENHEIGHT;
+
+    const scaleX = 1;
+    const scaleY = 1;
+
+    // const scaleX = width / constants.SCREENWIDTH;
+    // const scaleY = height / constants.SCREENHEIGHT;
 
     await app.init({
         canvas: pixiCanvas,
-        width: width,
-        height: height,
-        // width: constants.SCREENWIDTH,
-        // height: constants.SCREENHEIGHT,
-        resizeTo: pixiContainer,
-        autoDensity: true,
+        width: fixedWidth,
+        height: fixedHeight,
+        antialias: false,
         background: 'black',
     });
 
@@ -59,10 +70,10 @@ import ScoreText from './scoretxt';
     let background = maze.getBackground();
     app.stage.addChild(background);
 
-    let pellets = new Pellets();
+    let pellets = new Pellets(scaleX, scaleY);
     app.stage.addChild(pellets.pellets);
 
-    const pacman = new PacmanSprites();
+    const pacman = new PacmanSprites(scaleX, scaleY);
     await pacman.loadSpritesheet();
     const pacmanSprite = pacman.getSprite();
     app.stage.addChild(pacmanSprite);
@@ -72,20 +83,20 @@ import ScoreText from './scoretxt';
     // pacman.drawPacman(0, 0, 0);
     // pacman.changeImage();
 
-    const ghost = new GhostSprites('BLINKY', constants.CHASE, constants.RIGHT);
+    const ghost = new GhostSprites('BLINKY', constants.CHASE, constants.RIGHT, scaleX, scaleY);
     await ghost.loadSpritesheet();
     const ghostSprite = ghost.getSprite();
     app.stage.addChild(ghostSprite);
     ghost.drawGhost(ghost_loc[0], ghost_loc[1], 0);
 
-    const lives = new LifeSprites();
+    const lives = new LifeSprites(scaleX, scaleY);
     await lives.loadSpritesheet();
     lives.resetLives(5);
     const livesContainer = lives.getSprite();
     app.stage.addChild(livesContainer);
     lives.drawLives();
 
-    const scoretxt = new ScoreText();
+    const scoretxt = new ScoreText(scaleX, scaleY);
     const text = scoretxt.getText();
     app.stage.addChild(text);
 
@@ -202,24 +213,58 @@ import ScoreText from './scoretxt';
 
 
     const resize = () => {
-        const { width, height } = pixiContainer.getBoundingClientRect();
-        app.renderer.resize(width, height);
+        const containerWidth = pixiContainer.clientWidth;
+        const containerHeight = pixiContainer.clientHeight;
 
-        const scaleX = width / constants.SCREENWIDTH;
-        const scaleY = height / constants.SCREENHEIGHT;
+        const aspectRatio = fixedWidth / fixedHeight;
+        let newWidth, newHeight;
 
-        console.log(width)
-        console.log(height)
-        maze.updateScale(scaleX, scaleY);
-        maze.updateBackground();
-        pacman.updateScale(scaleX, scaleY);
-        pellets.updateScale(scaleX, scaleY);
-        ghost.updateScale(scaleX, scaleY);
-        lives.updateScale(scaleX, scaleY);
-        scoretxt.updateScale(scaleX, scaleY);
+        if (containerWidth / containerHeight < aspectRatio) {
+            // Container is taller relative to its width
+            newWidth = containerWidth;
+            newHeight = containerWidth / aspectRatio;
+        } else {
+            // Container is wider relative to its height
+            newWidth = containerHeight * aspectRatio;
+            newHeight = containerHeight;
+        }
+
+        console.log(aspectRatio);
+        console.log(newWidth);
+        console.log(newHeight);
+        console.log(newWidth / newHeight)
+
+        const scale = newWidth / fixedWidth;
+
+        pixiCanvas.style.width = `${newWidth}px`;
+        pixiCanvas.style.height = `${newHeight}px`;
+        pixiCanvas.style.transform = `scale(${scale})`;
+        pixiCanvas.style.transformOrigin = 'center center';
+        pixiCanvas.style.left = `${(containerWidth - newWidth) / 2}px`;
+        pixiCanvas.style.top = `${(containerHeight - newHeight) / 2}px`;
+        pixiCanvas.style.position = 'absolute';
+        
+        // const { width, height } = pixiContainer.getBoundingClientRect();
+        // // const { width, height } = getActualPixels(pixiContainer);
+        // app.renderer.resize(width, height);
+
+        // const scaleX = width / constants.SCREENWIDTH;
+        // const scaleY = height / constants.SCREENHEIGHT;
+
+        
+        // console.log(width)
+        // console.log(height)
+        // maze.updateScale(scaleX, scaleY);
+        // maze.updateBackground();
+        // pacman.updateScale(scaleX, scaleY);
+        // pellets.updateScale(scaleX, scaleY);
+        // ghost.updateScale(scaleX, scaleY);
+        // lives.updateScale(scaleX, scaleY);
+        // scoretxt.updateScale(scaleX, scaleY);
     };
 
-    window.addEventListener('resize', resize);
+    // window.addEventListener('resize', resize);
+    // resize();
 
     app.ticker.add((time) => {
         for (let i = rewardBubbles.length-1; i >= 0; i--) {
