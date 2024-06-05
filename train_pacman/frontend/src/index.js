@@ -7,20 +7,47 @@ import GhostSprites from './ghostsprites';
 import * as constants from './constants';
 import LifeSprites from './lifesprites';
 
+function resizeCanvas(app) {
+    const container = document.getElementById('pixi-container');
+    const canvas = document.getElementById('pixiCanvas');
+    const controls = document.getElementById('controls');
+
+    const containerWidth = container.clientWidth;
+    // const containerHeight = window.innerHeight - controls.offsetHeight - 20; // Adjust for controls and margin
+    const containerHeight = container.clientHeight;
+
+    canvas.style.width = `${containerWidth}px`;
+    canvas.style.height = `${containerHeight}px`;
+    app.renderer.resize(containerWidth, containerHeight);
+}
+
 (async () =>
 {
     const apiBaseUrl = process.env.APP_API_URL || 'train-pacman.com'
     const app = new Application();
 
     globalThis.__PIXI_APP__ = app;
-    
+
+    const pixiContainer = document.getElementById('pixi-container');
+    const pixiCanvas = document.getElementById('pixiCanvas');
+    const { width, height } = pixiContainer.getBoundingClientRect();
+
+    const scaleX = width / constants.SCREENWIDTH;
+    const scaleY = height / constants.SCREENHEIGHT;
+
     await app.init({
-        canvas: document.getElementById('pixiCanvas'),
-        width: constants.SCREENWIDTH,
-        height: constants.SCREENHEIGHT,
-        // resizeTo: document.getElementById('pixi-container'),
+        canvas: pixiCanvas,
+        width: width,
+        height: height,
+        // width: constants.SCREENWIDTH,
+        // height: constants.SCREENHEIGHT,
+        resizeTo: pixiContainer,
+        autoDensity: true,
         background: 'black',
     });
+
+    // window.addEventListener('resize', () => resizeCanvas(app));
+    // resizeCanvas(app);
 
     let data;
     try {
@@ -38,9 +65,10 @@ import LifeSprites from './lifesprites';
     const mazefile = await fetch('assets/maze1.txt').then(response => response.text());
     const rotfile = await fetch('assets/maze1_rotation.txt').then(response => response.text());
 
-    const maze = new MazeSprites(mazefile, rotfile);
+    const maze = new MazeSprites(mazefile, rotfile, scaleX, scaleY);
     await maze.loadSpritesheet();
-    const background = maze.constructBackground(0);
+    maze.constructBackground(0);
+    let background = maze.getBackground();
     app.stage.addChild(background);
 
     let pellets = new Pellets();
@@ -110,6 +138,22 @@ import LifeSprites from './lifesprites';
     document.getElementById('button_minus10').addEventListener('click', () => {
         socket.send(JSON.stringify({ action: 'reward_minus10' }));
     });
+
+
+    const resize = () => {
+        const { width, height } = pixiContainer.getBoundingClientRect();
+        app.renderer.resize(width, height);
+
+        const scaleX = width / constants.SCREENWIDTH;
+        const scaleY = height / constants.SCREENHEIGHT;
+
+        console.log(width)
+        console.log(height)
+        maze.updateScale(scaleX, scaleY);
+        maze.updateBackground();
+    };
+
+    window.addEventListener('resize', resize);
 
 
 

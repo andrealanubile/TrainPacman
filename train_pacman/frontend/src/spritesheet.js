@@ -18,6 +18,7 @@ class Spritesheet {
         const rectangle = new Rectangle(x * tileWidth, y * tileHeight, tileWidth, tileHeight);
         return new Texture({
             source: this.sheet,
+            
             frame: rectangle});
     }
 
