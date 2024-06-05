@@ -7,6 +7,7 @@ import GhostSprites from './ghostsprites';
 import * as constants from './constants';
 import LifeSprites from './lifesprites';
 import Rewardbubble from './reward_bubbles';
+import ScoreText from './scoretxt';
 
 (async () =>
 {
@@ -79,9 +80,14 @@ import Rewardbubble from './reward_bubbles';
 
     const lives = new LifeSprites();
     await lives.loadSpritesheet();
-    lives.resetLives(4);
-    const livesContainer = lives.drawLives();
+    lives.resetLives(5);
+    const livesContainer = lives.getSprite();
     app.stage.addChild(livesContainer);
+    lives.drawLives();
+
+    const scoretxt = new ScoreText();
+    const text = scoretxt.getText();
+    app.stage.addChild(text);
 
     // Connect to WebSocket
     const socket = new WebSocket(`ws://${apiBaseUrl}/ws/pacman/`);
@@ -105,12 +111,16 @@ import Rewardbubble from './reward_bubbles';
                     ghost_loc = JSON.parse(data['ghost_loc']);
                     ghost.direction = data['ghost_direction'];
                     const pelletList = JSON.parse(data['pellets']);
+                    const numLives = JSON.parse(data['num_lives']);
+                    const score = JSON.parse(data['score'])
                     // pellets.pelletList = pelletList;
                     pellets.setPelletList(pelletList);
-
                     pellets.drawPellets();
                     pacman.drawPacman(pacman_loc[0], pacman_loc[1], 1);
                     ghost.drawGhost(ghost_loc[0], ghost_loc[1], 1);
+                    lives.resetLives(numLives);
+                    lives.drawLives();
+                    scoretxt.updateScore(score);
                     break;
                 case 'reward_signal':
                     const pos = pacman.getPos()
@@ -202,6 +212,11 @@ import Rewardbubble from './reward_bubbles';
         console.log(height)
         maze.updateScale(scaleX, scaleY);
         maze.updateBackground();
+        pacman.updateScale(scaleX, scaleY);
+        pellets.updateScale(scaleX, scaleY);
+        ghost.updateScale(scaleX, scaleY);
+        lives.updateScale(scaleX, scaleY);
+        scoretxt.updateScale(scaleX, scaleY);
     };
 
     window.addEventListener('resize', resize);

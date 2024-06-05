@@ -2,9 +2,11 @@ import * as constants from './constants';
 import { Container, Graphics } from 'pixi.js'
 
 class Pellets {
-    constructor() {
+    constructor(scaleX = 1, scaleY = 1) {
         this.pelletsList = [];
         this.pellets = new Graphics();
+        this.scaleX = scaleX;
+        this.scaleY = scaleY;
     }
 
     // readPelletsFile(file) {
@@ -20,9 +22,9 @@ class Pellets {
         this.pellets.clear()
         let pellet;
         for (pellet of this.pelletList) {
-            let x = (pellet[0] + 1/2) * constants.TILEWIDTH;
-            let y = (pellet[1] + 1/2) * constants.TILEHEIGHT;
-            this.pellets.circle(x, y, 2)
+            let x = (pellet[0] + 1/2) * constants.TILEWIDTH * this.scaleX;
+            let y = (pellet[1] + 1/2) * constants.TILEHEIGHT * this.scaleY;
+            this.pellets.circle(x, y, 2*this.scaleX)
             this.pellets.fill(0xffffff)
         }
 
@@ -38,6 +40,11 @@ class Pellets {
         //     }
         // }
         // return pellets;
+    }
+
+    updateScale(scaleX, scaleY) {
+        this.scaleX = scaleX;
+        this.scaleY = scaleY;
     }
 
 }

@@ -104,7 +104,7 @@ def run_train():
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device('cpu')
 
-    BATCH_SIZE = 16
+    BATCH_SIZE = 128
     GAMMA = 0.99
     EPS = 0.05
     REPLAY_SIZE = 10000
@@ -181,6 +181,8 @@ def run_train():
             r.set('ghost_loc', ghost_loc)
             r.set('ghost_direction', ghost_direction)
             r.set('pellets', pellets)
+            r.set('num_lives', game.lives)
+            r.set('score', game.score)
             async_to_sync(channel_layer.group_send)(
                 'pacman_group',
                 {'type': 'state_update',
@@ -188,7 +190,9 @@ def run_train():
                 'pacman_direction': pacman_direction,
                 'ghost_loc': ghost_loc,
                 'ghost_direction': ghost_direction,
-                'pellets': pellets},
+                'pellets': pellets,
+                'num_lives': game.lives,
+                'score': game.score},
             )
 
             elapsed_time = time.time() - start_time
@@ -264,9 +268,11 @@ def optimize_model():
             n_actions = int(r.get('n_actions'))
             break
     
+    pretrain_checkpoint = 'dqn_checkpoint_iter_3000.pt'
 
     policy_net = DQN(state_dim, n_actions)
     target_net = DQN(state_dim, n_actions)
+    policy_net.load_state_dict(torch.load(os.path.join('training_backend', 'models', pretrain_checkpoint)))
     target_net.load_state_dict(policy_net.state_dict())
 
     buffer_policy_net = io.BytesIO()

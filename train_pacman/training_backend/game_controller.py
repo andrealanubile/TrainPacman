@@ -135,6 +135,7 @@ class GameController(object):
 
         if not self.pacman.alive:
             self.resetLevel()
+            self.checkPelletEvents()
         done = False
         if (self.lives <= 0) or (self.pellets.isEmpty()):
             done = True

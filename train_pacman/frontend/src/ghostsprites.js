@@ -3,7 +3,7 @@ import Spritesheet from './spritesheet';
 import { Sprite } from 'pixi.js'
 
 class GhostSprites extends Spritesheet {
-    constructor(name, mode, direction) {
+    constructor(name, mode, direction, scaleX = 1, scaleY = 1) {
         super();
         this.name = name;
         this.mode = mode;
@@ -11,6 +11,8 @@ class GhostSprites extends Spritesheet {
         this.ghostMap = {BLINKY: 0, PINKY: 2, INKY: 4, CLYDE: 6};
         this.sprite = new Sprite();
         this.sprite.anchor.set(0.5);
+        this.scaleX = scaleX;
+        this.scaleY = scaleY;
     }
 
     drawGhost(x, y, dt) {
@@ -48,9 +50,10 @@ class GhostSprites extends Spritesheet {
                     break;
             }
         }
-        this.sprite.x = (x + 1/2) * constants.TILEWIDTH;
-        this.sprite.y = (y + 1/2) * constants.TILEHEIGHT;;
+        this.sprite.x = (x + 1/2) * constants.TILEWIDTH * this.scaleX;
+        this.sprite.y = (y + 1/2) * constants.TILEHEIGHT * this.scaleY;
         this.sprite.texture = image;
+        this.sprite.scale.set(this.scaleX, this.scaleY);
     }
 
     getSprite() {
@@ -64,6 +67,11 @@ class GhostSprites extends Spritesheet {
 
     getImage(x, y) {
         return super.getImage(Math.floor(x/2), Math.floor(y/2), 2*constants.TILEWIDTH, 2*constants.TILEHEIGHT);
+    }
+
+    updateScale(scaleX, scaleY) {
+        this.scaleX = scaleX;
+        this.scaleY = scaleY;
     }
 }
 
