@@ -4,7 +4,7 @@ from constants import *
 from pacman import Pacman
 from nodes import NodeGroup
 from pellets import PelletGroup
-from ghosts import GhostGroup, GhostGroup1
+from ghosts import GhostGroup, GhostGroup1, GhostGroup0
 from fruit import Fruit
 from pauser import Pause
 from text import TextGroup
@@ -15,7 +15,7 @@ import numpy as np
 from pathlib import Path
 
 class GameController(object):
-    def __init__(self, debug, level):
+    def __init__(self, debug, level, ghosts):
         pygame.init()
         self.script_dir = Path(__file__).parent
         self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
@@ -39,6 +39,7 @@ class GameController(object):
         self.mazedata = MazeData()
         self.initial_pellet_positions = set()
         self.debug = debug
+        self.ghosts_num = ghosts
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -59,7 +60,12 @@ class GameController(object):
         self.mazedata.obj.connectHomeNodes(self.nodes)
         self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
         self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
-        self.ghosts = GhostGroup1(self.nodes.getStartTempNode(), self.pacman)
+        if self.ghosts_num == 1:
+            self.ghosts = GhostGroup1(self.nodes.getStartTempNode(), self.pacman)
+        elif self.ghosts_num == 0:
+            self.ghosts = GhostGroup0(self.nodes.getStartTempNode(), self.pacman)
+        else:
+            self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman)
 
         self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
         self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(0, 3)))

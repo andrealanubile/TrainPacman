@@ -159,10 +159,11 @@ if __name__ == '__main__':
     TAU = 0.005
     LR = 1e-4
     NUM_EPISODES = 3000
-    HORIZON = None
-    LEVEL = 1
+    HORIZON = 10000
+    LEVEL = 0
+    GHOSTS_NUM = 4
 
-    game = GameController(debug,LEVEL)
+    game = GameController(debug,LEVEL,GHOSTS_NUM)
     game.startGame()
 
     state_dim = (4, len(game.rows_use), len(game.cols_use))  # assuming grid size (channels, height, width)
@@ -229,6 +230,7 @@ if __name__ == '__main__':
                     episode_rewards.append(episode_reward)
                     episode_eps.append(torch.tensor([exploration_rate], device=device))
                     episode_scores.append(episode_score)
+                    save_results()
                     plot_rewards()
                     break
 
@@ -236,6 +238,7 @@ if __name__ == '__main__':
                 episode_rewards.append(episode_reward)
                 episode_eps.append(torch.tensor([exploration_rate], device=device))
                 episode_scores.append(episode_score)
+                save_results()
                 plot_rewards()
                 break
 
