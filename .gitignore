@@ -170,5 +170,5 @@ node_modules
 train_pacman/training_backend/results/*
 !train_pacman/training_backend/results/.gitkeep
 
-train_pacman/training_backend/models/*
-!train_pacman/training_backend/models/.gitkeep
+# train_pacman/training_backend/models/*
+# !train_pacman/training_backend/models/.gitkeep
