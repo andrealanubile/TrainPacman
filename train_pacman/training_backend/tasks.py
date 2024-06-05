@@ -226,7 +226,6 @@ def run_train():
                 
             if (reward != 0) or received_input:
                 # Store the transition in memory
-                print(f'pushing reward {reward}')
                 memory.push(state, action, next_state, reward)
 
             # Perform one step of the optimization (on the policy network)
@@ -265,8 +264,6 @@ def optimize_model():
             n_actions = int(r.get('n_actions'))
             break
     
-    print(f'state_dim: {state_dim}')
-    print(f'num_actions: {n_actions}')
 
     policy_net = DQN(state_dim, n_actions)
     target_net = DQN(state_dim, n_actions)
@@ -304,7 +301,6 @@ def optimize_model():
         # r.delete('target_net_before')
 
 
-        print('optimizing model')
         transitions = memory.sample(BATCH_SIZE)
         # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
         # detailed explanation). This converts batch-array of Transitions

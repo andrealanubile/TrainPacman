@@ -1,25 +1,12 @@
 import './styles.css';
-import { Application, Graphics, Assets, Sprite } from 'pixi.js';
+import { Application, Graphics, Container } from 'pixi.js';
 import MazeSprites from './mazesprites';
 import Pellets from './pellets';
 import PacmanSprites from './pacmansprites';
 import GhostSprites from './ghostsprites';
 import * as constants from './constants';
 import LifeSprites from './lifesprites';
-
-function resizeCanvas(app) {
-    const container = document.getElementById('pixi-container');
-    const canvas = document.getElementById('pixiCanvas');
-    const controls = document.getElementById('controls');
-
-    const containerWidth = container.clientWidth;
-    // const containerHeight = window.innerHeight - controls.offsetHeight - 20; // Adjust for controls and margin
-    const containerHeight = container.clientHeight;
-
-    canvas.style.width = `${containerWidth}px`;
-    canvas.style.height = `${containerHeight}px`;
-    app.renderer.resize(containerWidth, containerHeight);
-}
+import Rewardbubble from './reward_bubbles';
 
 (async () =>
 {
@@ -110,33 +97,97 @@ function resizeCanvas(app) {
     socket.onmessage = function(event) {
         try {
             const data = JSON.parse(event.data);
-            pacman_loc = JSON.parse(data['pacman_loc']);
-            pacman.direction = data['pacman_direction'];
-            ghost_loc = JSON.parse(data['ghost_loc']);
-            ghost.direction = data['ghost_direction'];
-            const pelletList = JSON.parse(data['pellets']);
-            // pellets.pelletList = pelletList;
-            pellets.setPelletList(pelletList);
+            const messageType = data['message_type'];
+            switch (messageType) {
+                case 'state_update':
+                    pacman_loc = JSON.parse(data['pacman_loc']);
+                    pacman.direction = data['pacman_direction'];
+                    ghost_loc = JSON.parse(data['ghost_loc']);
+                    ghost.direction = data['ghost_direction'];
+                    const pelletList = JSON.parse(data['pellets']);
+                    // pellets.pelletList = pelletList;
+                    pellets.setPelletList(pelletList);
 
-            pellets.drawPellets();
-            pacman.drawPacman(pacman_loc[0], pacman_loc[1], 1);
-            ghost.drawGhost(ghost_loc[0], ghost_loc[1], 1);
+                    pellets.drawPellets();
+                    pacman.drawPacman(pacman_loc[0], pacman_loc[1], 1);
+                    ghost.drawGhost(ghost_loc[0], ghost_loc[1], 1);
+                    break;
+                case 'reward_signal':
+                    const pos = pacman.getPos()
+                    const reward_str = data['reward'];
+                    switch (reward_str) {
+                        case 'reward_plus1': {
+                            let rb = new Rewardbubble('+', pos[0], pos[1], acc, alpha_decay);
+                            app.stage.addChild(rb.getGraphic());
+                            rewardBubbles.push(rb);
+                            break;
+                        }
+                        case 'reward_plus10': {
+                            let rb = new Rewardbubble('++', pos[0], pos[1], acc, alpha_decay);
+                            app.stage.addChild(rb.getGraphic());
+                            rewardBubbles.push(rb);
+                            break;
+
+                        }
+                        case 'reward_minus1': {
+                            let rb = new Rewardbubble('-', pos[0], pos[1], acc, alpha_decay);
+                            app.stage.addChild(rb.getGraphic());
+                            rewardBubbles.push(rb);
+                            break;
+                        }
+                        case 'reward_minus10': {
+                            let rb = new Rewardbubble('--', pos[0], pos[1], acc, alpha_decay);
+                            app.stage.addChild(rb.getGraphic());
+                            rewardBubbles.push(rb);
+                            break;
+                        }
+
+                    }
+            }
         } catch (parseError) {
             console.error('Error parsing WebSocket message:', parseError)
         }
     };
 
-    document.getElementById('button_plus1').addEventListener('click', () => {
+    let rewardBubbles = [];
+    const acc = 0.5;
+    const alpha_decay = 0.05;
+
+    document.getElementById('button_plus1').addEventListener('click', function() {
+        this.classList.add('active');
         socket.send(JSON.stringify({ action: 'reward_plus1' }));
+        setTimeout(() => this.classList.remove('active'), 200);
+        // const pos = pacman.getPos()
+        // let rb = new Rewardbubble('+', pos[0], pos[1], acc, alpha_decay);
+        // app.stage.addChild(rb.getGraphic());
+        // rewardBubbles.push(rb)
     });
-    document.getElementById('button_plus10').addEventListener('click', () => {
+    document.getElementById('button_plus10').addEventListener('click', function() {
+        this.classList.add('active');
         socket.send(JSON.stringify({ action: 'reward_plus10' }));
+        setTimeout(() => this.classList.remove('active'), 200);
+        // const pos = pacman.getPos()
+        // let rb = new Rewardbubble('++', pos[0], pos[1], acc, alpha_decay);
+        // app.stage.addChild(rb.getGraphic());
+        // rewardBubbles.push(rb)
     });
-    document.getElementById('button_minus1').addEventListener('click', () => {
+    document.getElementById('button_minus1').addEventListener('click', function() {
+        this.classList.add('active');
         socket.send(JSON.stringify({ action: 'reward_minus1' }));
+        setTimeout(() => this.classList.remove('active'), 200);
+        // const pos = pacman.getPos()
+        // let rb = new Rewardbubble('-', pos[0], pos[1], acc, alpha_decay);
+        // app.stage.addChild(rb.getGraphic());
+        // rewardBubbles.push(rb)
     });
-    document.getElementById('button_minus10').addEventListener('click', () => {
+    document.getElementById('button_minus10').addEventListener('click', function() {
+        this.classList.add('active');
         socket.send(JSON.stringify({ action: 'reward_minus10' }));
+        setTimeout(() => this.classList.remove('active'), 200);
+        // const pos = pacman.getPos()
+        // let rb = new Rewardbubble('--', pos[0], pos[1], acc, alpha_decay);
+        // app.stage.addChild(rb.getGraphic());
+        // rewardBubbles.push(rb)
     });
 
 
@@ -154,6 +205,18 @@ function resizeCanvas(app) {
     };
 
     window.addEventListener('resize', resize);
+
+    app.ticker.add((time) => {
+        for (let i = rewardBubbles.length-1; i >= 0; i--) {
+            if (rewardBubbles[i].isAlive) {
+                rewardBubbles[i].update(time.deltaTime);
+            } else {
+                app.stage.removeChild(rewardBubbles[i].getGraphic());
+                rewardBubbles.splice(i, 1);
+            }
+        }
+
+    });
 
 
 

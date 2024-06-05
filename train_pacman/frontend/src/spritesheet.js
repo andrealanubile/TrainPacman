@@ -1,4 +1,4 @@
-import {Texture, Rectangle, Assets, Container, Sprite} from 'pixi.js'
+import {Texture, Rectangle, Assets, Container, Sprite, ImageSource} from 'pixi.js'
 import * as constants from './constants'
 
 class Spritesheet {
@@ -16,10 +16,12 @@ class Spritesheet {
         const tileWidth = width || this.baseTileWidth;
         const tileHeight = height || this.baseTileHeight;
         const rectangle = new Rectangle(x * tileWidth, y * tileHeight, tileWidth, tileHeight);
-        return new Texture({
+        let texture = new Texture({
             source: this.sheet,
-            
             frame: rectangle});
+
+        texture.source.scaleMode = 'nearest';
+        return texture;
     }
 
 }

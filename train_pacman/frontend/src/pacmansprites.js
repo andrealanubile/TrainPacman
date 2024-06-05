@@ -4,7 +4,7 @@ import Spritesheet from './spritesheet';
 import { Sprite } from 'pixi.js'
 
 class PacmanSprites extends Spritesheet {
-    constructor() {
+    constructor(scaleX = 1, scaleY = 1) {
         super();
         this.alive = true;
         this.direction = constants.LEFT;
@@ -17,6 +17,8 @@ class PacmanSprites extends Spritesheet {
         this.animations.up = new Animator([[10,2], [6, 0], [6, 2], [6, 0]])
         this.animations.down = new Animator([[8,2], [4, 0], [4, 2], [4, 0]])
         this.animations.death = new Animator([[0, 12], [2, 12], [4, 12], [6, 12], [8, 12], [10, 12], [12, 12], [14, 12], [16, 12], [18, 12], [20, 12]], 6, false)
+        this.scaleX = scaleX;
+        this.scaleY = scaleY;
     }
 
     getImage(loc) {
@@ -60,9 +62,10 @@ class PacmanSprites extends Spritesheet {
             image = this.getImage(this.animations.death);
         }
 
-        this.sprite.x = (x + 0.5) * constants.TILEWIDTH;
-        this.sprite.y = (y + 0.5) * constants.TILEHEIGHT;
+        this.sprite.x = (x + 0.5) * constants.TILEWIDTH * this.scaleX;
+        this.sprite.y = (y + 0.5) * constants.TILEHEIGHT * this.scaleY;
         this.sprite.texture = image;
+        this.sprite.scale.set(this.scaleX, this.scaleY);
         
         // let pacmanSprite = new Sprite();
         // this.sprite = pacmanSprite;
@@ -70,6 +73,15 @@ class PacmanSprites extends Spritesheet {
         // pacmanSprite.x = (col + 1/2) * constants.TILEWIDTH;
         // pacmanSprite.y = (row + 1/2) * constants.TILEHEIGHT;;
         // return pacmanSprite;
+    }
+
+    updateScale(scaleX, scaleY) {
+        this.scaleX = scaleX;
+        this.scaleY = scaleY;
+    }
+
+    getPos() {
+        return [this.sprite.x, this.sprite.y];
     }
 
 }

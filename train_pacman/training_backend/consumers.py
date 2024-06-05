@@ -19,6 +19,7 @@ class PacmanConsumer(AsyncWebsocketConsumer):
 
         if action:
             self.redis.lpush('rewards', action)
+            await self.reward_signal({'reward': action})
 
     async def state_update(self, event):
         pacman_loc = event['pacman_loc']
@@ -26,8 +27,14 @@ class PacmanConsumer(AsyncWebsocketConsumer):
         ghost_loc = event['ghost_loc']
         ghost_direction = event['ghost_direction']
         pellets = event['pellets']
-        await self.send(text_data=json.dumps({'pacman_loc': pacman_loc,
+        await self.send(text_data=json.dumps({'message_type': 'state_update',
+                                              'pacman_loc': pacman_loc,
                                               'pacman_direction': pacman_direction,
                                               'ghost_loc': ghost_loc,
                                               'ghost_direction': ghost_direction,
                                               'pellets': pellets}))
+    
+    async def reward_signal(self, event):
+        reward = event['reward']
+        await self.send(text_data=json.dumps({'message_type': 'reward_signal',
+                                              'reward': reward}))
