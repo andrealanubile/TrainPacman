@@ -24,6 +24,12 @@ from .game_controller import GameController
 from .dqn_model import DQN, ReplayMemory, ReplayMemoryRedis, Transition
 
 
+REPLAY_SIZE = 10000
+HF_REPLAY_SIZE = 1000
+HF_SAMPLE_MAX = 8
+HF_BATCH_SIZE = 32
+device = torch.device('cpu')
+
 
 @shared_task
 def run_train():
@@ -80,11 +86,17 @@ def run_train():
         # Convert all tensors to lists
         episode_rewards_list = convert_to_list(episode_rewards)
         episode_scores_list = convert_to_list(episode_scores)
+        episode_length_list = convert_to_list(episode_lengths)
+        episode_hf_rewards_list = convert_to_list(episode_hf_rewards)
+        episode_hf_counts_list = convert_to_list(episode_hf_counts)
 
         # Create a DataFrame
         data = {
             'Episode Rewards': episode_rewards_list,
-            'Episode Scores': episode_scores_list
+            'Episode Scores': episode_scores_list,
+            'Episode Lengths': episode_length_list,
+            'Episode Human Feedback Rewards': episode_hf_rewards_list,
+            'Episode Human Feedback Counts': episode_hf_counts_list,
         }
         df = pd.DataFrame(data)
 
@@ -102,15 +114,13 @@ def run_train():
 
 
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device('cpu')
 
     BATCH_SIZE = 128
     GAMMA = 0.99
     EPS = 0.05
-    REPLAY_SIZE = 10000
     TAU = 0.005
     LR = 1e-4
-    HORIZON = None
+    HORIZON = 10000
     LEVEL = 0
     DEBUG = False
 
@@ -134,15 +144,18 @@ def run_train():
     r.set('tau', TAU)
 
     policy_net = DQN(state_dim, n_actions)
-    prev_state_dict = policy_net.state_dict()
 
-    memory = ReplayMemoryRedis(r, REPLAY_SIZE)
+    memory = ReplayMemoryRedis(r, REPLAY_SIZE, HF_REPLAY_SIZE, HF_SAMPLE_MAX)
     memory.clear()
+    memory.load_memory(os.path.join('training_backend', 'models', 'replay_memory.pkl'), device)
 
     num_episodes = 0
 
     episode_rewards = []
     episode_scores = []
+    episode_hf_rewards = []
+    episode_hf_counts = []
+    episode_lengths = []
 
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
@@ -159,7 +172,8 @@ def run_train():
         state = game.get_state()
         state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
         episode_reward = 0
-        episode_score = 0
+        episode_hf_reward = 0
+        episode_hf_count = 0
 
         for t in count():
             policy_net_bytestr = r.get('policy_net')
@@ -205,22 +219,27 @@ def run_train():
 
             received_input = False
 
+            hf_reward = 0
+
             while r.llen('rewards') > 0:
                 received_input = True
-                hf_reward = r.rpop('rewards').decode('utf-8')
-                if hf_reward == 'reward_plus1':
-                    reward += 10
-                elif hf_reward == 'reward_plus10':
-                    reward += 100
-                elif hf_reward == 'reward_minus1':
-                    reward -= 10
-                elif hf_reward == 'reward_minus10':
-                    reward -= 100
+                episode_hf_count += 1
+                reward_str = r.rpop('rewards').decode('utf-8')
+                if reward_str == 'reward_plus1':
+                    hf_reward += 10
+                elif reward_str == 'reward_plus10':
+                    hf_reward += 100
+                elif reward_str == 'reward_minus1':
+                    hf_reward += -10
+                elif reward_str == 'reward_minus10':
+                    hf_reward += -100
+            
+            reward += hf_reward
 
             reward = torch.tensor([reward], device=device).clamp(-1000, 1000)
 
             episode_reward += reward
-            episode_score += game.score
+            episode_hf_reward += hf_reward
 
             if done:
                 next_state = None
@@ -230,8 +249,11 @@ def run_train():
                 
             if (reward != 0) or received_input:
                 # Store the transition in memory
-                memory.push(state, action, next_state, reward)
-                print(f'pusing reward {reward.item()}')
+                if received_input:
+                    memory.push(state, action, next_state, reward, hf=True)
+                else:
+                    memory.push(state, action, next_state, reward, hf=False)
+                print(f'pushing reward {reward.item()}')
 
             # Perform one step of the optimization (on the policy network)
             # optimize_model()
@@ -242,26 +264,31 @@ def run_train():
             if HORIZON is not None:
                 if t > HORIZON:
                     episode_rewards.append(episode_reward)
-                    episode_scores.append(episode_score)
+                    episode_scores.append(game.score)
+                    episode_hf_rewards.append(episode_hf_reward)
+                    episode_hf_counts.append(episode_hf_count)
+                    episode_lengths.append(t)
                     break
 
             if done:
                 episode_rewards.append(episode_reward)
-                episode_scores.append(episode_score)
+                episode_scores.append(game.score)
+                episode_hf_rewards.append(episode_hf_reward)
+                episode_hf_counts.append(episode_hf_count)
+                episode_lengths.append(t)
                 break
         
         num_episodes += 1
 
-        if num_episodes % 10 == 0:
-            torch.save(policy_net.state_dict(), os.path.join('training_backend', 'models', 'model_checkpoint.pt'))
-            save_results()
-            plot_rewards()
+        torch.save(policy_net.state_dict(), os.path.join('training_backend', 'models', 'model_checkpoint.pt'))
+        save_results()
+        plot_rewards()
 
 
 @shared_task
 def optimize_model():
     r = redis.Redis(host='localhost', port=6379, db=0)
-    memory = ReplayMemoryRedis(r)
+    memory = ReplayMemoryRedis(r, REPLAY_SIZE, HF_REPLAY_SIZE, HF_SAMPLE_MAX)
 
     while True:
         if r.exists('state_dim') and r.exists('n_actions'):
@@ -292,24 +319,10 @@ def optimize_model():
     while True:
         if len(memory) < BATCH_SIZE:
             continue
-        # if not (r.exists('policy_net_before') and r.exists('target_net_before')):
-        #     continue
-        
-        # policy_net_bytestr = r.get('policy_net_before')
-        # target_net_bytestr = r.get('target_net_before')
-        # buffer_policy_net = io.BytesIO(policy_net_bytestr)
-        # buffer_target_net = io.BytesIO(target_net_bytestr)
-        # buffer_policy_net.seek(0)
-        # buffer_target_net.seek(0)
-        # policy_net.load_state_dict(torch.load(buffer_policy_net))
-        # target_net.load_state_dict(torch.load(buffer_target_net))
-
-        # r.delete('policy_net_before')
-        # r.delete('target_net_before')
 
         print('optimizing model')
 
-        transitions = memory.sample(BATCH_SIZE)
+        transitions = memory.sample(BATCH_SIZE, HF_BATCH_SIZE)
         # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
         # detailed explanation). This converts batch-array of Transitions
         # to Transition of batch-arrays.

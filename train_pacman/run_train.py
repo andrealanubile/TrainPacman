@@ -109,17 +109,19 @@ def save_results():
     episode_rewards_list = convert_to_list(episode_rewards)
     episode_eps_list = convert_to_list(episode_eps)
     episode_scores_list = convert_to_list(episode_scores)
+    episode_length_list = convert_to_list(episode_lengths)
 
     # Create a DataFrame
     data = {
         'Episode Rewards': episode_rewards_list,
         'Episode EPS': episode_eps_list,
-        'Episode Scores': episode_scores_list
+        'Episode Scores': episode_scores_list,
+        'Episode Lengths': episode_length_list
     }
     df = pd.DataFrame(data)
 
     # Define the directory and filename
-    results_dir = 'Results'
+    results_dir = 'results'
     csv_filename = f'Results_data_{LEVEL}.csv'
     
     # Construct the full file path
@@ -154,12 +156,12 @@ if __name__ == '__main__':
     GAMMA = 0.99
     EPS_START = 0.9
     EPS_END = 0.05
-    EPS_DECAY = 800
+    EPS_DECAY = 1200
     REPLAY_SIZE = 10000
     TAU = 0.005
     LR = 1e-4
-    NUM_EPISODES = 3000
-    HORIZON = None
+    NUM_EPISODES = 5000
+    HORIZON = 10000
     LEVEL = 0
 
     game = GameController(debug,LEVEL, reward_type='pretrain')
@@ -180,6 +182,7 @@ if __name__ == '__main__':
     episode_rewards = []
     episode_eps = []
     episode_scores = []
+    episode_lengths = []
 
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
@@ -229,6 +232,7 @@ if __name__ == '__main__':
                     episode_rewards.append(episode_reward)
                     episode_eps.append(torch.tensor([exploration_rate], device=device))
                     episode_scores.append(episode_score)
+                    episode_lengths.append(t)
                     plot_rewards()
                     break
 
@@ -236,6 +240,7 @@ if __name__ == '__main__':
                 episode_rewards.append(episode_reward)
                 episode_eps.append(torch.tensor([exploration_rate], device=device))
                 episode_scores.append(episode_score)
+                episode_lengths.append(t)
                 plot_rewards()
                 break
 
@@ -243,6 +248,7 @@ if __name__ == '__main__':
             torch.save(policy_net.state_dict(), f'dqn_checkpoint_iter_{i_episode}.pt') 
 
     torch.save(policy_net.state_dict(), 'dqn_model.pt')
+    memory.save_memory('replay_memory.pkl')
     save_results()
 
     print('Complete')
