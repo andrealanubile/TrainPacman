@@ -1,0 +1,96 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #f0f0f0;
+}
+
+#pixi-container {
+    /* outline: 1px solid orange; */
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 7/9;
+}
+
+#pixiCanvas {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+}
+
+.margin-constraint {
+    /* outline: 1px solid gray;  */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 90vw;
+    height: 90vh;
+    max-width: 90%;
+    max-height: 90%;
+}
+.width-constraint {
+    display: flex;
+    justify-content: center;
+    /* outline: 1px solid blue;  */
+    width: 448px;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 7/11;
+}
+
+.height-constraint {
+    /* outline: 1px solid green;  */
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 7/11;
+}
+
+.resizable-box {
+    /* border: 2px solid red; */
+    width: 100%;
+    height: 100%;
+}
+
+#controls {
+    /* outline: 1px solid purple; */
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.button_plus, .button_minus {
+    padding: 10px 20px;
+    margin: 5px;
+    font-size: 25px;
+    color: white;
+    background-color: #04AA6D;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    width: 100px;
+    box-sizing: border-box;
+    touch-action: manipulation;
+}
+
+.button_minus {
+    background-color: #ab0404;
+}
+
+.button_plus:active {
+    background-color: #037a50;  /* Darker shade for feedback */
+}
+
+.button_minus:active {
+    background-color: #800303;  /* Darker shade for feedback */
+}
