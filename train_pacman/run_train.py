@@ -3,13 +3,17 @@ from training_backend.dqn_model import DQN, ReplayMemory, Transition
 
 import os
 import math
+import time
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import _pylab_helpers
+from matplotlib.rcsetup import interactive_bk as _interactive_bk
 from collections import namedtuple, deque
 from itertools import count
 import random
 
 import torch
+from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
@@ -57,14 +61,14 @@ def optimize_model():
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
-    criterion = nn.MSELoss()
+    criterion = nn.SmoothL1Loss()
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
     # Optimize the model
     optimizer.zero_grad()
     loss.backward()
     # In-place gradient clipping
-    torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
+    # torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
 
 
@@ -75,22 +79,25 @@ def plot_rewards(show_result=False):
         ax1.set_title('Result')
     else:
         ax1.clear()
+        ax2.clear()
         ax1.set_title('Training...')
     ax1.set_xlabel('Episode')
     ax1.set_ylabel('Reward')
-    ax1.plot(rewards_t.numpy())
+    ax1.plot(rewards_t.numpy(), color='C0')
     # Take 100 episode averages and plot them too
     if len(rewards_t) >= 100:
         means = rewards_t.unfold(0, 100, 1).mean(1).view(-1)
         means = torch.cat((torch.zeros(99), means))
-        ax1.plot(means.numpy())
+        ax1.plot(means.numpy(), color='C2')
 
     # Convert episode_eps to CPU and then to numpy for plotting
     episode_eps_cpu = [eps.cpu().numpy() for eps in episode_eps]
     ax2.set_ylabel('Exploration rate')
-    ax2.plot(episode_eps_cpu)
+    ax2.plot(episode_eps_cpu, color='C1')
 
-    plt.pause(0.001)  # pause a bit so that plots are updated
+    plt.pause(0.1)  # pause a bit so that plots are updated 
+
+
 
 
 def convert_to_list(mixed_list):
@@ -148,9 +155,13 @@ def select_action(state, exploration_rate):
 
 
 if __name__ == '__main__':
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    print(device)
     # device = torch.device('cpu')
     np.set_printoptions(threshold=sys.maxsize, linewidth=200)
+
+    writer = SummaryWriter()
 
     BATCH_SIZE = 128
     GAMMA = 0.99
@@ -229,22 +240,30 @@ if __name__ == '__main__':
 
             if HORIZON is not None:
                 if t > HORIZON:
-                    episode_rewards.append(episode_reward)
-                    episode_eps.append(torch.tensor([exploration_rate], device=device))
-                    episode_scores.append(episode_score)
-                    episode_lengths.append(t)
-                    plot_rewards()
+                    # episode_rewards.append(episode_reward)
+                    # episode_eps.append(torch.tensor([exploration_rate], device=device))
+                    # episode_scores.append(episode_score)
+                    # episode_lengths.append(t)
+                    # plot_rewards()
+                    writer.add_scalar('Reward', episode_reward, i_episode)
+                    writer.add_scalar('Exploration rate', exploration_rate, i_episode)
+                    writer.add_scalar('Score', episode_score, i_episode)
+                    writer.add_scalar('Episode length', t, i_episode)
                     break
 
             if done:
-                episode_rewards.append(episode_reward)
-                episode_eps.append(torch.tensor([exploration_rate], device=device))
-                episode_scores.append(episode_score)
-                episode_lengths.append(t)
-                plot_rewards()
+                # episode_rewards.append(episode_reward)
+                # episode_eps.append(torch.tensor([exploration_rate], device=device))
+                # episode_scores.append(episode_score)
+                # episode_lengths.append(t)
+                # plot_rewards()
+                writer.add_scalar('Reward', episode_reward, i_episode)
+                writer.add_scalar('Exploration rate', exploration_rate, i_episode)
+                writer.add_scalar('Score', episode_score, i_episode)
+                writer.add_scalar('Episode length', t, i_episode)
                 break
 
-        if i_episode % 600 == 0:
+        if i_episode % 500 == 0:
             torch.save(policy_net.state_dict(), f'dqn_checkpoint_iter_{i_episode}.pt') 
 
     torch.save(policy_net.state_dict(), 'dqn_model.pt')

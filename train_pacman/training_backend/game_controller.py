@@ -1,8 +1,9 @@
 import pygame
+import time
 from pygame.locals import *
 from .constants import *
 from .pacman import Pacman
-from .nodes import NodeGroup
+from .nodes import Node, NodeGroup
 from .pellets import PelletGroup
 from .ghosts import GhostGroup, GhostGroup1
 from .fruit import Fruit
@@ -58,7 +59,8 @@ class GameController(object):
         self.nodes = NodeGroup(self.mazedata.obj.name+".txt")
         self.mazedata.obj.setPortalPairs(self.nodes)
         self.mazedata.obj.connectHomeNodes(self.nodes)
-        self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
+        # self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
+        self.pacman = Pacman(self.nodes.getNodeFromTiles(14, 26))
         self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
         self.ghosts = GhostGroup1(self.nodes.getStartTempNode(), self.pacman)
 
@@ -133,39 +135,42 @@ class GameController(object):
             print(f'pacman loc: {np.argwhere(state[2])}')
             print(f'num pellets: {np.sum(state[1])}')
 
-        if not self.pacman.alive:
-            self.resetLevel()
-            self.checkPelletEvents()
         done = False
         if (self.lives <= 0) or (self.pellets.isEmpty()):
             done = True
+
+        if not self.pacman.alive and not done:
+            self.resetLevel()
+            self.checkPelletEvents()
         return reward, state, done
 
     def get_reward(self, pellet_eaten):
         """Calculate the reward based on the game state."""
+
+        # previous rewards: eat pellet: +10, do nothing: -1, dying: -100, completing stage: +1000
         
         reward = 0
 
         if self.reward_type == 'pretrain':
             if pellet_eaten:
-                reward += 10
+                reward += 1.0
             else:
-                reward -= 1
+                reward -= 0.1
         elif self.reward_type == 'hf':
             pass
         else:
             print('Warning: invalid reward type')
             
         if not self.pacman.alive:
-            reward -= 100  # Negative reward for dying
+            reward -= 10.0 # Negative reward for dying
         elif self.pellets.isEmpty():
-            reward += 1000  # Positive reward for collecting all pellets
+            reward += 100.0  # Positive reward for collecting all pellets
         return reward  # Return the score difference as the reward
 
     def checkEvents(self):
         for event in pygame.event.get():
             if event.type == QUIT:
-                exit()
+                exit() 
             elif event.type == KEYDOWN:
                 if event.key == K_SPACE:
                     if self.pacman.alive:
@@ -216,7 +221,8 @@ class GameController(object):
                         self.pacman.die()               
                         self.ghosts.hide()
                         if self.lives <= 0:
-                            self.textgroup.showText(GAMEOVERTXT)
+                            pass
+                            # self.textgroup.showText(GAMEOVERTXT)
                             # self.pause.setPause(pauseTime=3, func=self.restartGame)
                             # self.pause.setPause(pauseTime=0)
                         else:

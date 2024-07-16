@@ -11,7 +11,8 @@ class MainMode(object):
             if self.mode is SCATTER:
                 self.chase()
             elif self.mode is CHASE:
-                self.scatter()
+                # self.scatter()
+                self.chase()
 
     def scatter(self):
         self.mode = SCATTER

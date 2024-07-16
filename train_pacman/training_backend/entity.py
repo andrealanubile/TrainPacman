@@ -2,7 +2,7 @@ import pygame
 from pygame.locals import *
 from .vector import Vector2
 from .constants import *
-from random import randint
+from random import randint, random
 
 class Entity(object):
     def __init__(self, node):
@@ -30,7 +30,10 @@ class Entity(object):
         if self.overshotTarget():
             self.node = self.target
             directions = self.validDirections()
-            direction = self.directionMethod(directions)
+            if random() < 0.1:
+                direction = self.randomDirection(directions)
+            else:
+                direction = self.directionMethod(directions)
             if not self.disablePortal:
                 if self.node.neighbors[PORTAL] is not None:
                     self.node = self.node.neighbors[PORTAL]

@@ -127,7 +127,7 @@ def run_train():
     r = redis.Redis(host='localhost', port=6379, db=0)
     channel_layer = get_channel_layer()
 
-    game = GameController(DEBUG, LEVEL, reward_type='hf')
+    game = GameController(DEBUG, LEVEL)
     game.startGame()
 
     state_dim = (4, len(game.rows_use), len(game.cols_use))  # assuming grid size (channels, height, width)
@@ -226,13 +226,13 @@ def run_train():
                 episode_hf_count += 1
                 reward_str = r.rpop('rewards').decode('utf-8')
                 if reward_str == 'reward_plus1':
-                    hf_reward += 10
+                    hf_reward += 1
                 elif reward_str == 'reward_plus10':
-                    hf_reward += 100
+                    hf_reward += 10
                 elif reward_str == 'reward_minus1':
-                    hf_reward += -10
+                    hf_reward += -1
                 elif reward_str == 'reward_minus10':
-                    hf_reward += -100
+                    hf_reward += -10
             
             reward += hf_reward
 
