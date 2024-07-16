@@ -7,22 +7,25 @@ from .entity import Entity
 from .sprites import PacmanSprites
 
 class Pacman(Entity):
-    def __init__(self, node):
+    def __init__(self, node, do_render=True):
         Entity.__init__(self, node )
         self.name = PACMAN    
         self.color = YELLOW
         self.direction = LEFT
         self.setBetweenNodes(LEFT)
         self.alive = True
-        self.sprites = PacmanSprites(self)
+        self.do_render = do_render
+        if self.do_render:
+            self.sprites = PacmanSprites(self)
 
     def reset(self):
         Entity.reset(self)
         self.direction = LEFT
         self.setBetweenNodes(LEFT)
         self.alive = True
-        self.image = self.sprites.getStartImage()
-        self.sprites.reset()
+        if self.do_render:
+            self.image = self.sprites.getStartImage()
+            self.sprites.reset()
 
     def die(self):
         self.alive = False
@@ -30,7 +33,8 @@ class Pacman(Entity):
 
     def update(self, dt, action):	
         self.direction = self.getValidKey(action)
-        self.sprites.update(dt)
+        if self.do_render:
+            self.sprites.update(dt)
         self.target = self.getNewTarget(self.direction)
         self.position += self.directions[self.direction]*self.speed*dt
         if self.overshotTarget():

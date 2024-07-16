@@ -16,10 +16,9 @@ import numpy as np
 from pathlib import Path
 
 class GameController(object):
-    def __init__(self, debug, level, reward_type='pretrain'):
+    def __init__(self, debug, level, reward_type='pretrain', render=True):
         pygame.init()
         self.script_dir = Path(__file__).parent
-        self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
         self.background = None
         self.background_norm = None
         self.background_flash = None
@@ -31,7 +30,6 @@ class GameController(object):
         self.lives = 5
         self.score = 0
         self.textgroup = TextGroup()
-        self.lifesprites = LifeSprites(self.lives)
         self.flashBG = False
         self.flashTime = 0.2
         self.flashTimer = 0
@@ -41,6 +39,11 @@ class GameController(object):
         self.initial_pellet_positions = set()
         self.debug = debug
         self.reward_type = reward_type
+        self.do_render = render
+        if self.do_render:
+            self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
+            self.lifesprites = LifeSprites(self.lives)
+
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -54,26 +57,27 @@ class GameController(object):
 
     def startGame(self):      
         self.mazedata.loadMaze(self.level)
-        self.mazesprites = MazeSprites(self.mazedata.obj.name+".txt", self.mazedata.obj.name+"_rotation.txt")
-        self.setBackground()
+        if self.do_render:
+            self.mazesprites = MazeSprites(self.mazedata.obj.name+".txt", self.mazedata.obj.name+"_rotation.txt")
+            self.setBackground()
         self.nodes = NodeGroup(self.mazedata.obj.name+".txt")
         self.mazedata.obj.setPortalPairs(self.nodes)
         self.mazedata.obj.connectHomeNodes(self.nodes)
         # self.pacman = Pacman(self.nodes.getNodeFromTiles(*self.mazedata.obj.pacmanStart))
-        self.pacman = Pacman(self.nodes.getNodeFromTiles(14, 26))
+        self.pacman = Pacman(self.nodes.getNodeFromTiles(14, 26), self.do_render)
         self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
-        self.ghosts = GhostGroup1(self.nodes.getStartTempNode(), self.pacman)
+        self.ghosts = GhostGroup1(self.nodes.getStartTempNode(), self.pacman, self.do_render)
 
-        self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
-        self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(0, 3)))
-        self.ghosts.clyde.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(4, 3)))
+        # self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
+        # self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(0, 3)))
+        # self.ghosts.clyde.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(4, 3)))
         self.ghosts.setSpawnNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 3)))
         self.ghosts.blinky.setStartNode(self.nodes.getNodeFromTiles(*self.mazedata.obj.addOffset(2, 0)))
 
         self.nodes.denyHomeAccess(self.pacman)
         self.nodes.denyHomeAccessList(self.ghosts)
-        self.ghosts.inky.startNode.denyAccess(RIGHT, self.ghosts.inky)
-        self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
+        # self.ghosts.inky.startNode.denyAccess(RIGHT, self.ghosts.inky)
+        # self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
 
         self.load_and_initialize_grid(self.mazedata.obj.name + ".txt")
@@ -125,7 +129,9 @@ class GameController(object):
         if afterPauseMethod is not None:
             afterPauseMethod()
         self.checkEvents()
-        self.render()
+
+        if self.do_render:
+            self.render()
 
         reward = self.get_reward(pellet_eaten)
         state = self.get_state()
@@ -217,7 +223,8 @@ class GameController(object):
                 elif ghost.mode.current is not SPAWN:
                     if self.pacman.alive:
                         self.lives -=  1
-                        self.lifesprites.removeImage()
+                        if self.do_render:
+                            self.lifesprites.removeImage()
                         self.pacman.die()               
                         self.ghosts.hide()
                         if self.lives <= 0:
@@ -274,7 +281,8 @@ class GameController(object):
         self.textgroup.updateScore(self.score)
         self.textgroup.updateLevel(self.level)
         self.textgroup.showText(READYTXT)
-        self.lifesprites.resetLives(self.lives)
+        if self.do_render:
+            self.lifesprites.resetLives(self.lives)
         self.fruitCaptured = []
 
     def resetLevel(self):
