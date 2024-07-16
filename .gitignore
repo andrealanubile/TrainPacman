@@ -172,5 +172,6 @@ train_pacman/training_backend/results/*
 
 train_pacman/training_backend/models/replay_memory.pkl
 
+runs
 # train_pacman/training_backend/models/*
 # !train_pacman/training_backend/models/.gitkeep

@@ -6,8 +6,6 @@ import math
 import time
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib import _pylab_helpers
-from matplotlib.rcsetup import interactive_bk as _interactive_bk
 from collections import namedtuple, deque
 from itertools import count
 import random
@@ -179,7 +177,7 @@ if __name__ == '__main__':
     HORIZON = 10000
     LEVEL = 0
 
-    game = GameController(debug,LEVEL, reward_type='pretrain')
+    game = GameController(debug,LEVEL, reward_type='pretrain', render=True)
     game.startGame()
 
     state_dim = (4, len(game.rows_use), len(game.cols_use))  # assuming grid size (channels, height, width)

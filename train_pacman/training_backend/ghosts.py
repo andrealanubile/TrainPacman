@@ -7,7 +7,7 @@ from .modes import ModeController
 from .sprites import GhostSprites
 
 class Ghost(Entity):
-    def __init__(self, node, pacman=None, blinky=None):
+    def __init__(self, node, pacman=None, blinky=None, do_render=True):
         Entity.__init__(self, node)
         self.name = GHOST
         self.points = 200
@@ -17,6 +17,7 @@ class Ghost(Entity):
         self.mode = ModeController(self)
         self.blinky = blinky
         self.homeNode = node
+        self.do_render = do_render
 
     def reset(self):
         Entity.reset(self)
@@ -24,7 +25,8 @@ class Ghost(Entity):
         self.directionMethod = self.goalDirection
 
     def update(self, dt):
-        self.sprites.update(dt)
+        if self.do_render:
+            self.sprites.update(dt)
         self.mode.update(dt)
         if self.mode.current is SCATTER:
             self.scatter()
@@ -66,11 +68,12 @@ class Ghost(Entity):
 
 
 class Blinky(Ghost):
-    def __init__(self, node, pacman=None, blinky=None):
-        Ghost.__init__(self, node, pacman, blinky)
+    def __init__(self, node, pacman=None, blinky=None, do_render=True):
+        Ghost.__init__(self, node, pacman, blinky, do_render)
         self.name = BLINKY
         self.color = RED
-        self.sprites = GhostSprites(self)
+        if do_render:
+            self.sprites = GhostSprites(self)
 
 
 class Pinky(Ghost):
@@ -171,12 +174,8 @@ class GhostGroup(object):
             ghost.render(screen)
 
 class GhostGroup1(object):
-    def __init__(self, node, pacman):
-        self.blinky = Blinky(node, pacman)
-        self.pinky = Pinky(node, pacman)
-        self.inky = Inky(node, pacman, self.blinky)
-        self.clyde = Clyde(node, pacman)
-        # self.ghosts = []
+    def __init__(self, node, pacman, do_render):
+        self.blinky = Blinky(node, pacman, None, do_render)
         self.ghosts = [self.blinky]
 
     def __iter__(self):
