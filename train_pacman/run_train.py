@@ -155,10 +155,14 @@ def select_action(state, exploration_rate):
 
 
 if __name__ == '__main__':
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backend.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     print(device)
-    # device = torch.device('cpu')
+
     np.set_printoptions(threshold=sys.maxsize, linewidth=200)
 
     writer = SummaryWriter()
