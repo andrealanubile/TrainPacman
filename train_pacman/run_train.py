@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
 import random
-
 import torch
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
@@ -19,12 +18,14 @@ import numpy as np
 import sys
 from tqdm import tqdm
 import pandas as pd
+from hydra_zen import launch, store, builds, zen
+from hydra.conf import HydraConf, JobConf, RunDir, SweepDir
 
 global debug
 debug = False
 
 
-def optimize_model():
+def optimize_model(memory, BATCH_SIZE, GAMMA, optimizer, policy_net, target_net, device):
     if len(memory) < BATCH_SIZE:
         return
     transitions = memory.sample(BATCH_SIZE)
@@ -70,76 +71,7 @@ def optimize_model():
     optimizer.step()
 
 
-
-def plot_rewards(show_result=False):
-    rewards_t = torch.tensor(episode_rewards, dtype=torch.float)
-    if show_result:
-        ax1.set_title('Result')
-    else:
-        ax1.clear()
-        ax2.clear()
-        ax1.set_title('Training...')
-    ax1.set_xlabel('Episode')
-    ax1.set_ylabel('Reward')
-    ax1.plot(rewards_t.numpy(), color='C0')
-    # Take 100 episode averages and plot them too
-    if len(rewards_t) >= 100:
-        means = rewards_t.unfold(0, 100, 1).mean(1).view(-1)
-        means = torch.cat((torch.zeros(99), means))
-        ax1.plot(means.numpy(), color='C2')
-
-    # Convert episode_eps to CPU and then to numpy for plotting
-    episode_eps_cpu = [eps.cpu().numpy() for eps in episode_eps]
-    ax2.set_ylabel('Exploration rate')
-    ax2.plot(episode_eps_cpu, color='C1')
-
-    plt.pause(0.1)  # pause a bit so that plots are updated 
-
-
-
-
-def convert_to_list(mixed_list):
-    converted_list = []
-    for item in mixed_list:
-        if isinstance(item, torch.Tensor):
-            converted_list.extend(item.cpu().numpy().tolist())
-        elif isinstance(item, (list, tuple)):
-            converted_list.extend(convert_to_list(item))  # Recursively handle nested lists
-        else:
-            converted_list.append(item)
-    return converted_list
-
-def save_results():
-    # Convert all tensors to lists
-    episode_rewards_list = convert_to_list(episode_rewards)
-    episode_eps_list = convert_to_list(episode_eps)
-    episode_scores_list = convert_to_list(episode_scores)
-    episode_length_list = convert_to_list(episode_lengths)
-
-    # Create a DataFrame
-    data = {
-        'Episode Rewards': episode_rewards_list,
-        'Episode EPS': episode_eps_list,
-        'Episode Scores': episode_scores_list,
-        'Episode Lengths': episode_length_list
-    }
-    df = pd.DataFrame(data)
-
-    # Define the directory and filename
-    results_dir = 'results'
-    csv_filename = f'Results_data_{LEVEL}.csv'
-    
-    # Construct the full file path
-    file_path = os.path.join(results_dir, csv_filename)
-
-    # Save DataFrame to CSV in the specified directory
-    df.to_csv(file_path, index=False)
-
-    print(f"Data saved to {file_path}")
-
-
-
-def select_action(state, exploration_rate):
+def select_action(state, exploration_rate, policy_net, n_actions, device):
     sample = random.random()
     if sample > exploration_rate:
         with torch.no_grad():
@@ -149,13 +81,12 @@ def select_action(state, exploration_rate):
             return policy_net(state).max(1).indices.view(1, 1)
     else:
         return torch.tensor(np.random.choice(np.arange(n_actions)), device=device, dtype=torch.long).view(1, 1)
-        
 
 
-if __name__ == '__main__':
+def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_END, REPLAY_SIZE, TAU, LR, NUM_EPISODES, HORIZON, LEVEL):
     if torch.cuda.is_available():
         device = torch.device("cuda")
-    elif torch.backend.mps.is_available():
+    elif torch.backends.mps.is_available():
         device = torch.device("mps")
     else:
         device = torch.device("cpu")
@@ -163,19 +94,7 @@ if __name__ == '__main__':
 
     np.set_printoptions(threshold=sys.maxsize, linewidth=200)
 
-    writer = SummaryWriter()
-
-    BATCH_SIZE = 128
-    GAMMA = 0.99
-    EPS_START = 0.9
-    EPS_END = 0.05
-    EPS_DECAY = 1200
-    REPLAY_SIZE = 10000
-    TAU = 0.005
-    LR = 1e-4
-    NUM_EPISODES = 5000
-    HORIZON = 10000
-    LEVEL = 0
+    writer = SummaryWriter(log_dir='.')
 
     game = GameController(debug,LEVEL, reward_type='pretrain', render=True)
     game.startGame()
@@ -200,6 +119,8 @@ if __name__ == '__main__':
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
 
+    EPS_DECAY = NUM_EPISODES / np.log(EPS_START / EPS_END)
+
     for i_episode in tqdm(range(NUM_EPISODES)):
         # Initialize the environment and get its state
         if i_episode > 0:
@@ -207,9 +128,9 @@ if __name__ == '__main__':
         state = game.get_state()
         state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
         episode_reward = 0
-        exploration_rate = EPS_END + (EPS_START - EPS_END) * math.exp(-1. * i_episode / EPS_DECAY)
+        exploration_rate = EPS_START * math.exp(-1. * i_episode / EPS_DECAY)
         for t in count():
-            action = select_action(state, exploration_rate)
+            action = select_action(state, exploration_rate, policy_net, n_actions, device)
             reward, next_state, done = game.update(action.item())
             reward = torch.tensor([reward], device=device)
             episode_reward += reward
@@ -230,7 +151,7 @@ if __name__ == '__main__':
             state = next_state
 
             # Perform one step of the optimization (on the policy network)
-            optimize_model()
+            optimize_model(memory, BATCH_SIZE, GAMMA, optimizer, policy_net, target_net, device)
 
             # Soft update of the target network's weights
             # θ′ ← τ θ + (1 −τ )θ′
@@ -270,9 +191,107 @@ if __name__ == '__main__':
 
     torch.save(policy_net.state_dict(), 'dqn_model.pt')
     memory.save_memory('replay_memory.pkl')
-    save_results()
+    writer.close()
 
-    print('Complete')
-    plot_rewards(show_result=True)
-    plt.ioff()
-    plt.show()
+
+store(builds(run_train, 
+             BATCH_SIZE=128, 
+             GAMMA=0.99,
+             EPS_START=0.9,
+             EPS_END=0.05,
+             REPLAY_SIZE=10000,
+             TAU=0.005,
+             LR=1e-4,
+             NUM_EPISODES=3000,
+             HORIZON=10000,
+             LEVEL=0), name='run_train')
+
+if __name__ == '__main__':
+    store(HydraConf(job=JobConf(chdir=True),
+                    run=RunDir(dir='hydra_runs/${now:%Y-%m-%d}/${now:%H-%M-%S}_${hydra.job.name}'),
+                    sweep=SweepDir(dir='hydra_runs/${now:%Y-%m-%d}/${now:%H-%M-%S}_${hydra.job.name}', subdir='job_${hydra.job.num}_${hydra.job.override_dirname}')),
+                    name="config", group="hydra")
+    store.add_to_hydra_store(overwrite_ok=True)
+    task_fn = zen(run_train)
+
+    ovr = {
+        'BATCH_SIZE': 128,
+        'LR': 1e-4,
+        'TAU': 0.005,
+        'NUM_EPISODES': 3000,
+        'EPS_END': 0.05
+    }
+
+    # jobname = f'DQN_BS={ovr["BATCH_SIZE"]}_LR={ovr["LR"]}_TAU={ovr["TAU"]}_EPSF={ovr["EPS_END"]}_NUMEP={ovr["NUM_EPISODES"]}'
+    
+    job = launch(store[None, 'run_train'],
+                 task_fn,
+                 overrides=ovr,
+                 job_name='testname',
+                 multirun=True,
+                 version_base='1.2')
+
+# def plot_rewards(show_result=False):
+#     rewards_t = torch.tensor(episode_rewards, dtype=torch.float)
+#     if show_result:
+#         ax1.set_title('Result')
+#     else:
+#         ax1.clear()
+#         ax2.clear()
+#         ax1.set_title('Training...')
+#     ax1.set_xlabel('Episode')
+#     ax1.set_ylabel('Reward')
+#     ax1.plot(rewards_t.numpy(), color='C0')
+#     # Take 100 episode averages and plot them too
+#     if len(rewards_t) >= 100:
+#         means = rewards_t.unfold(0, 100, 1).mean(1).view(-1)
+#         means = torch.cat((torch.zeros(99), means))
+#         ax1.plot(means.numpy(), color='C2')
+
+#     # Convert episode_eps to CPU and then to numpy for plotting
+#     episode_eps_cpu = [eps.cpu().numpy() for eps in episode_eps]
+#     ax2.set_ylabel('Exploration rate')
+#     ax2.plot(episode_eps_cpu, color='C1')
+
+#     plt.pause(0.1)  # pause a bit so that plots are updated 
+
+
+
+# def convert_to_list(mixed_list):
+#     converted_list = []
+#     for item in mixed_list:
+#         if isinstance(item, torch.Tensor):
+#             converted_list.extend(item.cpu().numpy().tolist())
+#         elif isinstance(item, (list, tuple)):
+#             converted_list.extend(convert_to_list(item))  # Recursively handle nested lists
+#         else:
+#             converted_list.append(item)
+#     return converted_list
+
+# def save_results(episode_rewards, episode_eps, episode_scores, episode_lengths, LEVEL):
+#     # Convert all tensors to lists
+#     episode_rewards_list = convert_to_list(episode_rewards)
+#     episode_eps_list = convert_to_list(episode_eps)
+#     episode_scores_list = convert_to_list(episode_scores)
+#     episode_length_list = convert_to_list(episode_lengths)
+
+#     # Create a DataFrame
+#     data = {
+#         'Episode Rewards': episode_rewards_list,
+#         'Episode EPS': episode_eps_list,
+#         'Episode Scores': episode_scores_list,
+#         'Episode Lengths': episode_length_list
+#     }
+#     df = pd.DataFrame(data)
+
+#     # Define the directory and filename
+#     results_dir = 'results'
+#     csv_filename = f'Results_data_{LEVEL}.csv'
+    
+#     # Construct the full file path
+#     file_path = os.path.join(results_dir, csv_filename)
+
+#     # Save DataFrame to CSV in the specified directory
+#     df.to_csv(file_path, index=False)
+
+#     print(f"Data saved to {file_path}")
