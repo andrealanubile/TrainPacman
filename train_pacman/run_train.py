@@ -18,7 +18,7 @@ import numpy as np
 import sys
 from tqdm import tqdm
 import pandas as pd
-from hydra_zen import launch, store, builds, zen
+from hydra_zen import launch, store, builds, zen, multirun
 from hydra.conf import HydraConf, JobConf, RunDir, SweepDir
 
 global debug
@@ -214,84 +214,15 @@ if __name__ == '__main__':
     store.add_to_hydra_store(overwrite_ok=True)
     task_fn = zen(run_train)
 
-    ovr = {
-        'BATCH_SIZE': 128,
-        'LR': 1e-4,
-        'TAU': 0.005,
-        'NUM_EPISODES': 3000,
-        'EPS_END': 0.05
-    }
-
-    # jobname = f'DQN_BS={ovr["BATCH_SIZE"]}_LR={ovr["LR"]}_TAU={ovr["TAU"]}_EPSF={ovr["EPS_END"]}_NUMEP={ovr["NUM_EPISODES"]}'
-    
     job = launch(store[None, 'run_train'],
                  task_fn,
-                 overrides=ovr,
-                 job_name='testname',
+                 overrides={
+                    'BATCH_SIZE': 128,
+                    'LR': 1e-4,
+                    'TAU': 0.005,
+                    'NUM_EPISODES': multirun([300, 500, 1000]),
+                    'EPS_END': 0.01
+                 },
+                 job_name='DQN_tuning',
                  multirun=True,
                  version_base='1.2')
-
-# def plot_rewards(show_result=False):
-#     rewards_t = torch.tensor(episode_rewards, dtype=torch.float)
-#     if show_result:
-#         ax1.set_title('Result')
-#     else:
-#         ax1.clear()
-#         ax2.clear()
-#         ax1.set_title('Training...')
-#     ax1.set_xlabel('Episode')
-#     ax1.set_ylabel('Reward')
-#     ax1.plot(rewards_t.numpy(), color='C0')
-#     # Take 100 episode averages and plot them too
-#     if len(rewards_t) >= 100:
-#         means = rewards_t.unfold(0, 100, 1).mean(1).view(-1)
-#         means = torch.cat((torch.zeros(99), means))
-#         ax1.plot(means.numpy(), color='C2')
-
-#     # Convert episode_eps to CPU and then to numpy for plotting
-#     episode_eps_cpu = [eps.cpu().numpy() for eps in episode_eps]
-#     ax2.set_ylabel('Exploration rate')
-#     ax2.plot(episode_eps_cpu, color='C1')
-
-#     plt.pause(0.1)  # pause a bit so that plots are updated 
-
-
-
-# def convert_to_list(mixed_list):
-#     converted_list = []
-#     for item in mixed_list:
-#         if isinstance(item, torch.Tensor):
-#             converted_list.extend(item.cpu().numpy().tolist())
-#         elif isinstance(item, (list, tuple)):
-#             converted_list.extend(convert_to_list(item))  # Recursively handle nested lists
-#         else:
-#             converted_list.append(item)
-#     return converted_list
-
-# def save_results(episode_rewards, episode_eps, episode_scores, episode_lengths, LEVEL):
-#     # Convert all tensors to lists
-#     episode_rewards_list = convert_to_list(episode_rewards)
-#     episode_eps_list = convert_to_list(episode_eps)
-#     episode_scores_list = convert_to_list(episode_scores)
-#     episode_length_list = convert_to_list(episode_lengths)
-
-#     # Create a DataFrame
-#     data = {
-#         'Episode Rewards': episode_rewards_list,
-#         'Episode EPS': episode_eps_list,
-#         'Episode Scores': episode_scores_list,
-#         'Episode Lengths': episode_length_list
-#     }
-#     df = pd.DataFrame(data)
-
-#     # Define the directory and filename
-#     results_dir = 'results'
-#     csv_filename = f'Results_data_{LEVEL}.csv'
-    
-#     # Construct the full file path
-#     file_path = os.path.join(results_dir, csv_filename)
-
-#     # Save DataFrame to CSV in the specified directory
-#     df.to_csv(file_path, index=False)
-
-#     print(f"Data saved to {file_path}")
