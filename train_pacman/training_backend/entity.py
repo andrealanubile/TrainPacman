@@ -30,7 +30,7 @@ class Entity(object):
         if self.overshotTarget():
             self.node = self.target
             directions = self.validDirections()
-            if random() < 0.1:
+            if random() < 0.15:
                 direction = self.randomDirection(directions)
             else:
                 direction = self.directionMethod(directions)

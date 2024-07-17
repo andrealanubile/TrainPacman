@@ -168,7 +168,7 @@ class GameController(object):
             print('Warning: invalid reward type')
             
         if not self.pacman.alive:
-            reward -= 10.0 # Negative reward for dying
+            reward -= 50.0 # Negative reward for dying
         elif self.pellets.isEmpty():
             reward += 100.0  # Positive reward for collecting all pellets
         return reward  # Return the score difference as the reward
