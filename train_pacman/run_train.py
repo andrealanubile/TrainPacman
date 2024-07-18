@@ -83,7 +83,7 @@ def select_action(state, exploration_rate, policy_net, n_actions, device):
         return torch.tensor(np.random.choice(np.arange(n_actions)), device=device, dtype=torch.long).view(1, 1)
 
 
-def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_END, REPLAY_SIZE, TAU, LR, NUM_EPISODES, HORIZON, LEVEL):
+def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_DECAY, REPLAY_SIZE, TAU, LR, NUM_EPISODES, HORIZON, LEVEL):
     if torch.cuda.is_available():
         device = torch.device("cuda")
     elif torch.backends.mps.is_available():
@@ -119,7 +119,7 @@ def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_END, REPLAY_SIZE, TAU, LR, NUM_E
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
 
-    EPS_DECAY = NUM_EPISODES / np.log(EPS_START / EPS_END)
+    # EPS_DECAY = NUM_EPISODES / np.log(EPS_START / EPS_END)
 
     for i_episode in tqdm(range(NUM_EPISODES)):
         # Initialize the environment and get its state
@@ -193,12 +193,12 @@ store(builds(run_train,
              BATCH_SIZE=128, 
              GAMMA=0.99,
              EPS_START=0.9,
-             EPS_END=0.05,
+             EPS_DECAY=100,
              REPLAY_SIZE=10000,
              TAU=0.005,
              LR=1e-4,
              NUM_EPISODES=3000,
-             HORIZON=10000,
+             HORIZON=1000,
              LEVEL=0), name='run_train')
 
 if __name__ == '__main__':
@@ -215,8 +215,8 @@ if __name__ == '__main__':
                     'BATCH_SIZE': 128,
                     'LR': 1e-4,
                     'TAU': 0.005,
-                    'NUM_EPISODES': multirun([300, 500, 1000]),
-                    'EPS_END': 0.01
+                    'NUM_EPISODES': 1500,
+                    'EPS_DECAY': multirun([50, 100, 150])
                  },
                  job_name='DQN_tuning',
                  multirun=True,
