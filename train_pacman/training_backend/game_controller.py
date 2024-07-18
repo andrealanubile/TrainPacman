@@ -78,7 +78,7 @@ class GameController(object):
         self.nodes.denyHomeAccessList(self.ghosts)
         # self.ghosts.inky.startNode.denyAccess(RIGHT, self.ghosts.inky)
         # self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
-        self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
+        # self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
 
         self.load_and_initialize_grid(self.mazedata.obj.name + ".txt")
 
