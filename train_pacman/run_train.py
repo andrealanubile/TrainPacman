@@ -129,9 +129,13 @@ def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_END, REPLAY_SIZE, TAU, LR, NUM_E
         state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
         episode_reward = 0
         exploration_rate = EPS_START * math.exp(-1. * i_episode / EPS_DECAY)
+        force_episode_end = False
         for t in count():
             action = select_action(state, exploration_rate, policy_net, n_actions, device)
             reward, next_state, done = game.update(action.item())
+            if force_episode_end:
+                reward = -250
+                done = True
             reward = torch.tensor([reward], device=device)
             episode_reward += reward
             episode_score = torch.tensor([game.score], device=device)
@@ -163,16 +167,7 @@ def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_END, REPLAY_SIZE, TAU, LR, NUM_E
 
             if HORIZON is not None:
                 if t > HORIZON:
-                    # episode_rewards.append(episode_reward)
-                    # episode_eps.append(torch.tensor([exploration_rate], device=device))
-                    # episode_scores.append(episode_score)
-                    # episode_lengths.append(t)
-                    # plot_rewards()
-                    writer.add_scalar('Reward', episode_reward, i_episode)
-                    writer.add_scalar('Exploration rate', exploration_rate, i_episode)
-                    writer.add_scalar('Score', episode_score, i_episode)
-                    writer.add_scalar('Episode length', t, i_episode)
-                    break
+                    force_episode_end = True
 
             if done:
                 # episode_rewards.append(episode_reward)

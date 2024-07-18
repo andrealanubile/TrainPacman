@@ -40,6 +40,7 @@ class GameController(object):
         self.debug = debug
         self.reward_type = reward_type
         self.do_render = render
+        self.time_since_pellet = 0
         if self.do_render:
             self.screen = pygame.display.set_mode(SCREENSIZE, 0, 32)
             self.lifesprites = LifeSprites(self.lives)
@@ -115,6 +116,10 @@ class GameController(object):
             else:
                 pass
             
+        if pellet_eaten:
+            self.time_since_pellet = 0
+        else:
+            self.time_since_pellet += 1
 
         if self.flashBG:
             self.flashTimer += dt
@@ -161,7 +166,7 @@ class GameController(object):
             if pellet_eaten:
                 reward += 1.0
             else:
-                reward -= 0.1
+                reward -= 0.03*self.time_since_pellet
         elif self.reward_type == 'hf':
             pass
         else:
@@ -284,6 +289,7 @@ class GameController(object):
         if self.do_render:
             self.lifesprites.resetLives(self.lives)
         self.fruitCaptured = []
+        self.time_since_pellet = 0
 
     def resetLevel(self):
         self.pause.paused = False
@@ -291,6 +297,7 @@ class GameController(object):
         self.ghosts.reset()
         self.fruit = None
         self.textgroup.showText(READYTXT)
+        self.time_since_pellet = 0
 
     def updateScore(self, points):
         self.score += points

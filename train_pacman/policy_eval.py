@@ -11,7 +11,7 @@ from itertools import count
 debug = False
 LEVEL = 0
 NUM_EPISODES = 100
-HORIZON = 500
+HORIZON = 1000
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
@@ -31,7 +31,7 @@ state_dim = (4, len(game.rows_use), len(game.cols_use))  # assuming grid size (c
 n_actions = 4  # UP, DOWN, LEFT, RIGHT
 
 policy_net = DQN(state_dim, n_actions).to(device)
-policy_net.load_state_dict(torch.load('dqn_model.pt', map_location=device))
+policy_net.load_state_dict(torch.load('dqn_checkpoint_iter_1000.pt', map_location=device))
 policy_net.eval()
 
 steps_done = 0
@@ -52,10 +52,9 @@ for i_episode in tqdm(range(NUM_EPISODES)):
     episode_reward = 0
     for t in count():
         time.sleep(0.1)
-        print(policy_net(state))
         action = select_action(state, policy_net)
-        print(action)
         reward, next_state, done = game.update(action.item())
+        print(reward)
         if done:
             next_state = None
         else:
