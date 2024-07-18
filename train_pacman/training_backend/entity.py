@@ -3,6 +3,7 @@ from pygame.locals import *
 from .vector import Vector2
 from .constants import *
 from random import randint, random
+from collections import deque
 
 class Entity(object):
     def __init__(self, node):
@@ -20,6 +21,8 @@ class Entity(object):
         self.directionMethod = self.randomDirection
         self.setStartNode(node)
         self.image = None
+        self.direction_record = deque()
+        self.max_record_len = 10
 
     def setPosition(self):
         self.position = self.node.position.copy()
@@ -45,15 +48,18 @@ class Entity(object):
 
             self.setPosition()
           
-    def validDirection(self, direction):
+    def validDirection(self, direction, check_record=True):
         if direction is not STOP:
             if self.name in self.node.access[direction]:
                 if self.node.neighbors[direction] is not None:
-                    return True
+                    if check_record and ((self.node, direction) not in self.direction_record):
+                        return True
+                    elif not check_record:
+                        return True
         return False
 
     def getNewTarget(self, direction):
-        if self.validDirection(direction):
+        if self.validDirection(direction, check_record=False):
             return self.node.neighbors[direction]
         return self.node
 
@@ -97,6 +103,10 @@ class Entity(object):
             vec = self.node.position  + self.directions[direction]*TILEWIDTH - self.goal
             distances.append(vec.magnitudeSquared())
         index = distances.index(min(distances))
+        if len(directions) > 1:
+            self.direction_record.append((self.node, directions[index]))
+        if len(self.direction_record) > self.max_record_len:
+            self.direction_record.popleft()
         return directions[index]
 
     def setStartNode(self, node):
