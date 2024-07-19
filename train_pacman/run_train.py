@@ -1,5 +1,5 @@
 from training_backend.game_controller import GameController
-from training_backend.dqn_model import DQN, ReplayMemory, Transition
+from training_backend.dqn_model import DQN, DQN2, ReplayMemory, Transition
 
 import os
 import math
@@ -83,7 +83,7 @@ def select_action(state, exploration_rate, policy_net, n_actions, device):
         return torch.tensor(np.random.choice(np.arange(n_actions)), device=device, dtype=torch.long).view(1, 1)
 
 
-def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_DECAY, REPLAY_SIZE, TAU, LR, NUM_EPISODES, HORIZON, LEVEL):
+def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_DECAY, REPLAY_SIZE, TAU, LR, NUM_EPISODES, HORIZON, LEVEL, model):
     if torch.cuda.is_available():
         device = torch.device("cuda")
     elif torch.backends.mps.is_available():
@@ -102,9 +102,19 @@ def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_DECAY, REPLAY_SIZE, TAU, LR, NUM
     state_dim = (4, len(game.rows_use), len(game.cols_use))  # assuming grid size (channels, height, width)
     n_actions = 4  # UP, DOWN, LEFT, RIGHT
 
-    policy_net = DQN(state_dim, n_actions).to(device)
-    target_net = DQN(state_dim, n_actions).to(device)
+    if model == 'dqn1':
+        policy_net = DQN(state_dim, n_actions).to(device)
+        target_net = DQN(state_dim, n_actions).to(device)
+    elif model == 'dqn2':
+        policy_net = DQN2(state_dim, n_actions).to(device)
+        target_net = DQN2(state_dim, n_actions).to(device)
     target_net.load_state_dict(policy_net.state_dict())
+
+    # initialize lazy modules with a dummy batch
+    with torch.no_grad():
+        init_tensor = torch.zeros(1, *state_dim, device=device)
+        policy_net(init_tensor)
+        target_net(init_tensor)
 
     optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
     memory = ReplayMemory(REPLAY_SIZE)
@@ -134,7 +144,7 @@ def run_train(BATCH_SIZE, GAMMA, EPS_START, EPS_DECAY, REPLAY_SIZE, TAU, LR, NUM
             action = select_action(state, exploration_rate, policy_net, n_actions, device)
             reward, next_state, done = game.update(action.item())
             if force_episode_end:
-                reward = -250
+                reward = -1
                 done = True
             reward = torch.tensor([reward], device=device)
             episode_reward += reward
@@ -199,7 +209,8 @@ store(builds(run_train,
              LR=1e-4,
              NUM_EPISODES=3000,
              HORIZON=1000,
-             LEVEL=0), name='run_train')
+             LEVEL=0,
+             model='dqn1'), name='run_train')
 
 if __name__ == '__main__':
     store(HydraConf(job=JobConf(chdir=True),
@@ -212,12 +223,13 @@ if __name__ == '__main__':
     job = launch(store[None, 'run_train'],
                  task_fn,
                  overrides={
-                    'BATCH_SIZE': 128,
-                    'LR': 1e-4,
-                    'TAU': 0.005,
+                    # 'BATCH_SIZE': 128,
+                    # 'LR': 1e-4,
+                    # 'TAU': 0.005,
                     'NUM_EPISODES': 1500,
-                    'EPS_DECAY': multirun([50, 100, 150])
+                    'EPS_DECAY': 100,
+                    'model': 'dqn1'
                  },
-                 job_name='DQN_tuning',
+                 job_name='neutral_reward_test',
                  multirun=True,
                  version_base='1.2')

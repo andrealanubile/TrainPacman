@@ -160,22 +160,25 @@ class GameController(object):
 
         # previous rewards: eat pellet: +10, do nothing: -1, dying: -100, completing stage: +1000
         
-        reward = 0
+        reward = 0.0
 
         if self.reward_type == 'pretrain':
             if pellet_eaten:
                 reward += 1.0
             else:
-                reward -= 0.03*self.time_since_pellet
+                # reward -= 0.03*self.time_since_pellet
+                pass
         elif self.reward_type == 'hf':
             pass
         else:
             print('Warning: invalid reward type')
             
         if not self.pacman.alive:
-            reward -= 50.0 # Negative reward for dying
+            # reward -= 50.0 # Negative reward for dying
+            reward -= 1.0
         elif self.pellets.isEmpty():
-            reward += 100.0  # Positive reward for collecting all pellets
+            # reward += 100.0  # Positive reward for collecting all pellets
+            pass
         return reward  # Return the score difference as the reward
 
     def checkEvents(self):
