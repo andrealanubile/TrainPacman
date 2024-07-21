@@ -106,13 +106,13 @@ class GameController(object):
         if not self.pause.paused:
             self.ghosts.update(dt)
             self.checkGhostEvents()     
-            if self.fruit is not None:
-                self.fruit.update(dt)
+            # if self.fruit is not None:
+            #     self.fruit.update(dt)
             if self.pacman.alive:
                 self.pacman.update(dt, actions_mapping[action])
                 pellet_eaten = self.checkPelletEvents()
                 self.checkGhostEvents()
-                self.checkFruitEvents()
+                # self.checkFruitEvents()
             else:
                 pass
             
