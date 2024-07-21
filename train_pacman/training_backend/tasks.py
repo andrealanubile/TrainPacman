@@ -24,7 +24,7 @@ from .game_controller import GameController
 from .dqn_model import DQN, ReplayMemory, ReplayMemoryRedis, Transition
 
 
-REPLAY_SIZE = 10000
+REPLAY_SIZE = 100000
 HF_REPLAY_SIZE = 1000
 HF_SAMPLE_MAX = 8
 HF_BATCH_SIZE = 32
@@ -44,32 +44,32 @@ def run_train():
         else:
             return torch.tensor(np.random.choice(np.arange(n_actions)), device=device, dtype=torch.long).view(1, 1)
 
-    def plot_rewards(show_result=False):
-        rewards_t = torch.tensor(episode_rewards, dtype=torch.float)
-        scores_t = torch.tensor(episode_scores, dtype=torch.float)
-        if show_result:
-            ax1.set_title('Result')
-        else:
-            ax1.clear()
-            ax1.set_title('Training...')
-        ax1.set_xlabel('Episode')
-        ax1.set_ylabel('Reward')
-        ax1.plot(rewards_t.numpy())
-        # Take 100 episode averages and plot them too
-        if len(rewards_t) >= 100:
-            means = rewards_t.unfold(0, 100, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(99), means))
-            ax1.plot(means.numpy())
+    # def plot_rewards(show_result=False):
+    #     rewards_t = torch.tensor(episode_rewards, dtype=torch.float)
+    #     scores_t = torch.tensor(episode_scores, dtype=torch.float)
+    #     if show_result:
+    #         ax1.set_title('Result')
+    #     else:
+    #         ax1.clear()
+    #         ax1.set_title('Training...')
+    #     ax1.set_xlabel('Episode')
+    #     ax1.set_ylabel('Reward')
+    #     ax1.plot(rewards_t.numpy())
+    #     # Take 100 episode averages and plot them too
+    #     if len(rewards_t) >= 100:
+    #         means = rewards_t.unfold(0, 100, 1).mean(1).view(-1)
+    #         means = torch.cat((torch.zeros(99), means))
+    #         ax1.plot(means.numpy())
 
-        # Convert episode_eps to CPU and then to numpy for plotting
-        ax2.set_ylabel('Score')
-        ax2.plot(scores_t.numpy())
-        if len(scores_t) >= 100:
-            means = scores_t.unfold(0, 100, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(99), means))
-            ax2.plot(means.numpy())
+    #     # Convert episode_eps to CPU and then to numpy for plotting
+    #     ax2.set_ylabel('Score')
+    #     ax2.plot(scores_t.numpy())
+    #     if len(scores_t) >= 100:
+    #         means = scores_t.unfold(0, 100, 1).mean(1).view(-1)
+    #         means = torch.cat((torch.zeros(99), means))
+    #         ax2.plot(means.numpy())
 
-        plt.savefig(os.path.join('training_backend', 'results', 'rewards.png'))
+    #     plt.savefig(os.path.join('training_backend', 'results', 'rewards.png'))
 
     def convert_to_list(mixed_list):
         converted_list = []
@@ -117,17 +117,18 @@ def run_train():
 
     BATCH_SIZE = 128
     GAMMA = 0.99
-    EPS = 0.05
+    EPS_START = 0.9
+    EPS_DECAY = 100
     TAU = 0.005
     LR = 1e-4
-    HORIZON = 10000
+    HORIZON = 1000
     LEVEL = 0
     DEBUG = False
 
     r = redis.Redis(host='localhost', port=6379, db=0)
     channel_layer = get_channel_layer()
 
-    game = GameController(DEBUG, LEVEL)
+    game = GameController(DEBUG, LEVEL, reward_type='pretrain', render=False)
     game.startGame()
 
     state_dim = (4, len(game.rows_use), len(game.cols_use))  # assuming grid size (channels, height, width)
@@ -147,7 +148,7 @@ def run_train():
 
     memory = ReplayMemoryRedis(r, REPLAY_SIZE, HF_REPLAY_SIZE, HF_SAMPLE_MAX)
     memory.clear()
-    memory.load_memory(os.path.join('training_backend', 'models', 'replay_memory.pkl'), device)
+    # memory.load_memory(os.path.join('training_backend', 'models', 'replay_memory.pkl'), device)
 
     num_episodes = 0
 
@@ -157,8 +158,8 @@ def run_train():
     episode_hf_counts = []
     episode_lengths = []
 
-    fig, ax1 = plt.subplots()
-    ax2 = ax1.twinx()
+    # fig, ax1 = plt.subplots()
+    # ax2 = ax1.twinx()
 
     time_interval = 0.6
     start_time = time.time()
@@ -174,7 +175,7 @@ def run_train():
         episode_reward = 0
         episode_hf_reward = 0
         episode_hf_count = 0
-
+        force_episode_end = False
         for t in count():
             policy_net_bytestr = r.get('policy_net')
             buffer_policy_net = io.BytesIO(policy_net_bytestr)
@@ -182,8 +183,12 @@ def run_train():
             policy_net.load_state_dict(torch.load(buffer_policy_net))
 
 
-            action = select_action(state, EPS)
+            exploration_rate = EPS_START * math.exp(-1. * num_episodes / EPS_DECAY)
+            action = select_action(state, exploration_rate)
             reward, next_state, done = game.update(action.item())
+            if force_episode_end:
+                reward = -1
+                done = True
 
             pacman_loc = json.dumps(game.pacman.getPos())
             pacman_direction = game.pacman.direction
@@ -246,14 +251,11 @@ def run_train():
             else:
                 next_state = torch.tensor(next_state, dtype=torch.float32, device=device).unsqueeze(0)
 
-                
-            if (reward != 0) or received_input:
-                # Store the transition in memory
-                if received_input:
-                    memory.push(state, action, next_state, reward, hf=True)
-                else:
-                    memory.push(state, action, next_state, reward, hf=False)
-                print(f'pushing reward {reward.item()}')
+            if received_input:
+                memory.push(state, action, next_state, reward, hf=True)
+            else:
+                memory.push(state, action, next_state, reward, hf=False)
+            print(f'pushing reward {reward.item()}')
 
             # Perform one step of the optimization (on the policy network)
             # optimize_model()
@@ -263,12 +265,7 @@ def run_train():
 
             if HORIZON is not None:
                 if t > HORIZON:
-                    episode_rewards.append(episode_reward)
-                    episode_scores.append(game.score)
-                    episode_hf_rewards.append(episode_hf_reward)
-                    episode_hf_counts.append(episode_hf_count)
-                    episode_lengths.append(t)
-                    break
+                    force_episode_end = True
 
             if done:
                 episode_rewards.append(episode_reward)
@@ -282,7 +279,7 @@ def run_train():
 
         torch.save(policy_net.state_dict(), os.path.join('training_backend', 'models', 'model_checkpoint.pt'))
         save_results()
-        plot_rewards()
+        # plot_rewards()
 
 
 @shared_task
@@ -296,11 +293,11 @@ def optimize_model():
             n_actions = int(r.get('n_actions'))
             break
     
-    pretrain_checkpoint = 'dqn_checkpoint_iter_5000.pt'
+    # pretrain_checkpoint = 'dqn_checkpoint_iter_5000.pt'
 
     policy_net = DQN(state_dim, n_actions)
     target_net = DQN(state_dim, n_actions)
-    policy_net.load_state_dict(torch.load(os.path.join('training_backend', 'models', pretrain_checkpoint), map_location=torch.device('cpu')))
+    # policy_net.load_state_dict(torch.load(os.path.join('training_backend', 'models', pretrain_checkpoint), map_location=torch.device('cpu')))
     target_net.load_state_dict(policy_net.state_dict())
 
     buffer_policy_net = io.BytesIO()
@@ -354,14 +351,14 @@ def optimize_model():
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
-        criterion = nn.MSELoss()
+        criterion = nn.SmoothL1Loss()
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
         # Optimize the model
         optimizer.zero_grad()
         loss.backward()
         # In-place gradient clipping
-        torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
+        # torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
         optimizer.step()
 
         # Soft update of the target network's weights

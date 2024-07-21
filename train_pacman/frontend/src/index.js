@@ -20,17 +20,12 @@ import ScoreText from './scoretxt';
 
     const pixiContainer = document.getElementById('pixi-container');
     const pixiCanvas = document.getElementById('pixiCanvas');
-    // const { width, height } = pixiContainer.getBoundingClientRect();
-    // const { width, height } = getActualPixels(pixiContainer);
 
     const fixedWidth = constants.SCREENWIDTH;
     const fixedHeight = constants.SCREENHEIGHT;
 
     const scaleX = 1;
     const scaleY = 1;
-
-    // const scaleX = width / constants.SCREENWIDTH;
-    // const scaleY = height / constants.SCREENHEIGHT;
 
     await app.init({
         canvas: pixiCanvas,
@@ -39,9 +34,6 @@ import ScoreText from './scoretxt';
         antialias: false,
         background: 'black',
     });
-
-    // window.addEventListener('resize', () => resizeCanvas(app));
-    // resizeCanvas(app);
 
     let data;
     try {
@@ -173,10 +165,6 @@ import ScoreText from './scoretxt';
         this.classList.add('active');
         socket.send(JSON.stringify({ action: 'reward_plus1' }));
         setTimeout(() => this.classList.remove('active'), 200);
-        // const pos = pacman.getPos()
-        // let rb = new Rewardbubble('+', pos[0], pos[1], acc, alpha_decay);
-        // app.stage.addChild(rb.getGraphic());
-        // rewardBubbles.push(rb)
     });
     document.getElementById('button_plus10').addEventListener('click', function() {
         this.classList.add('active');
@@ -194,61 +182,6 @@ import ScoreText from './scoretxt';
         setTimeout(() => this.classList.remove('active'), 200);
     });
 
-
-    const resize = () => {
-        const containerWidth = pixiContainer.clientWidth;
-        const containerHeight = pixiContainer.clientHeight;
-
-        const aspectRatio = fixedWidth / fixedHeight;
-        let newWidth, newHeight;
-
-        if (containerWidth / containerHeight < aspectRatio) {
-            // Container is taller relative to its width
-            newWidth = containerWidth;
-            newHeight = containerWidth / aspectRatio;
-        } else {
-            // Container is wider relative to its height
-            newWidth = containerHeight * aspectRatio;
-            newHeight = containerHeight;
-        }
-
-        console.log(aspectRatio);
-        console.log(newWidth);
-        console.log(newHeight);
-        console.log(newWidth / newHeight)
-
-        const scale = newWidth / fixedWidth;
-
-        pixiCanvas.style.width = `${newWidth}px`;
-        pixiCanvas.style.height = `${newHeight}px`;
-        pixiCanvas.style.transform = `scale(${scale})`;
-        pixiCanvas.style.transformOrigin = 'center center';
-        pixiCanvas.style.left = `${(containerWidth - newWidth) / 2}px`;
-        pixiCanvas.style.top = `${(containerHeight - newHeight) / 2}px`;
-        pixiCanvas.style.position = 'absolute';
-        
-        // const { width, height } = pixiContainer.getBoundingClientRect();
-        // // const { width, height } = getActualPixels(pixiContainer);
-        // app.renderer.resize(width, height);
-
-        // const scaleX = width / constants.SCREENWIDTH;
-        // const scaleY = height / constants.SCREENHEIGHT;
-
-        
-        // console.log(width)
-        // console.log(height)
-        // maze.updateScale(scaleX, scaleY);
-        // maze.updateBackground();
-        // pacman.updateScale(scaleX, scaleY);
-        // pellets.updateScale(scaleX, scaleY);
-        // ghost.updateScale(scaleX, scaleY);
-        // lives.updateScale(scaleX, scaleY);
-        // scoretxt.updateScale(scaleX, scaleY);
-    };
-
-    // window.addEventListener('resize', resize);
-    // resize();
-
     app.ticker.add((time) => {
         for (let i = rewardBubbles.length-1; i >= 0; i--) {
             if (rewardBubbles[i].isAlive) {
@@ -260,8 +193,5 @@ import ScoreText from './scoretxt';
         }
 
     });
-
-
-
 })();
 
