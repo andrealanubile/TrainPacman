@@ -15,7 +15,11 @@ module.exports = {
             directory: path.join(__dirname, 'dist')
         },
         port: 3000,
-        open: true,
+        open: {
+            app: {
+                name: 'google chrome',
+            },
+        },
         hot: true,
     },
     module: {

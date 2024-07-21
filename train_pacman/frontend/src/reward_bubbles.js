@@ -12,18 +12,26 @@ class RewardBubble {
         this.isAlive = true;
         switch (type) {
             case '+':
+                this.graphic.circle(this.x, this.y, 6)
+                this.graphic.fill(0xffffff);
                 this.graphic.circle(this.x, this.y, 5);
                 this.graphic.fill(0x04AA6D);
                 break;
             case '++':
+                this.graphic.circle(this.x, this.y, 12)
+                this.graphic.fill(0xffffff);
                 this.graphic.circle(this.x, this.y, 10);
                 this.graphic.fill(0x04AA6D);
                 break;
             case '-':
+                this.graphic.circle(this.x, this.y, 6)
+                this.graphic.fill(0xffffff);
                 this.graphic.circle(this.x, this.y, 5);
                 this.graphic.fill(0xab0404);
                 break;
             case '--':
+                this.graphic.circle(this.x, this.y, 12)
+                this.graphic.fill(0xffffff);
                 this.graphic.circle(this.x, this.y, 10);
                 this.graphic.fill(0xab0404);
                 break;

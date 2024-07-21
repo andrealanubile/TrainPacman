@@ -9,16 +9,11 @@ import LifeSprites from './lifesprites';
 import Rewardbubble from './reward_bubbles';
 import ScoreText from './scoretxt';
 
+
 (async () =>
 {
-    // function getActualPixels(element) {
-    //     const rect = element.getBoundingClientRect();
-    //     const width = rect.width * window.devicePixelRatio;
-    //     const height = rect.height * window.devicePixelRatio;
-    //     return { width, height };
-    // }
-
-    const apiBaseUrl = process.env.APP_API_URL || 'train-pacman.com'
+    // const apiBaseUrl = process.env.APP_API_URL || 'train-pacman.com'
+    const apiBaseUrl = 'train-pacman.com'
     const app = new Application();
 
     globalThis.__PIXI_APP__ = app;
@@ -171,8 +166,8 @@ import ScoreText from './scoretxt';
     };
 
     let rewardBubbles = [];
-    const acc = 0.5;
-    const alpha_decay = 0.05;
+    const acc = 0.3;
+    const alpha_decay = 0.03;
 
     document.getElementById('button_plus1').addEventListener('click', function() {
         this.classList.add('active');
@@ -187,28 +182,16 @@ import ScoreText from './scoretxt';
         this.classList.add('active');
         socket.send(JSON.stringify({ action: 'reward_plus10' }));
         setTimeout(() => this.classList.remove('active'), 200);
-        // const pos = pacman.getPos()
-        // let rb = new Rewardbubble('++', pos[0], pos[1], acc, alpha_decay);
-        // app.stage.addChild(rb.getGraphic());
-        // rewardBubbles.push(rb)
     });
     document.getElementById('button_minus1').addEventListener('click', function() {
         this.classList.add('active');
         socket.send(JSON.stringify({ action: 'reward_minus1' }));
         setTimeout(() => this.classList.remove('active'), 200);
-        // const pos = pacman.getPos()
-        // let rb = new Rewardbubble('-', pos[0], pos[1], acc, alpha_decay);
-        // app.stage.addChild(rb.getGraphic());
-        // rewardBubbles.push(rb)
     });
     document.getElementById('button_minus10').addEventListener('click', function() {
         this.classList.add('active');
         socket.send(JSON.stringify({ action: 'reward_minus10' }));
         setTimeout(() => this.classList.remove('active'), 200);
-        // const pos = pacman.getPos()
-        // let rb = new Rewardbubble('--', pos[0], pos[1], acc, alpha_decay);
-        // app.stage.addChild(rb.getGraphic());
-        // rewardBubbles.push(rb)
     });
 
 

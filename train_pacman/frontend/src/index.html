@@ -3,25 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
     <title>Train Pac-Man</title>
 </head>
 <body>
-    <div class="margin-constraint">
-        <div class="width-constraint">
-            <div class="height-constraint">
-                <div class="resizable-box">
-                    <div id="pixi-container">
-                        <canvas id="pixiCanvas"></canvas>
-                    </div>
-                    <div id="controls">
-                        <button id="button_plus10" class="button_plus">+10</button>
-                        <button id="button_plus1" class="button_plus">+1</button>
-                        <button id="button_minus1" class="button_minus">-1</button>
-                        <button id="button_minus10" class="button_minus">-10</button>
-                    </div>
-                </div>
+    <div class="main-section">
+        <div class="title">
+            <h1>Train Pac-Man</h1>
+            <h2 class="subtitle">A reinforcement learning environment with live human feedback</h2>
+        </div>
+        <div class="canvas-container">
+            <canvas id="pixiCanvas"></canvas>
+            <div class="controls">
+                <button id="button_plus10" class="button_plus">+10</button>
+                <button id="button_plus1" class="button_plus">+1</button>
+                <button id="button_minus1" class="button_minus">-1</button>
+                <button id="button_minus10" class="button_minus">-10</button>
+            </div>
+        </div>
+        <div class="bottom-peek">
+            <h2>How does this work?</h2>
+            <div class="arrow-down"></div>
+        </div>
+    </div>
+    <div class="lower-section">
+        <div class="text-container">
+            <div class="explanation">
+                <p>This is a simplified Pac-Man game being played by a computer. It learns how to play over time using <a href="https://en.wikipedia.org/wiki/Reinforcement_learning">reinforcement learning</a>. The computer doesn't know anything about the game &mdash; it only knows that it can move either up, down, left or right. It initially explores the environment randomly, collecting both positive and negative rewards depending on which actions it takes. Over time, the agent (computer) learns which actions from which states lead to higher rewards, and takes those actions more fequently. Eventually, the agent's behavior converges to an optimal policy given a sufficient number of time steps.</p>
+                <p>However, it is often difficult to define a reward function that accurately specifies how the agent should solve the problem. The agent may learn slowly, not at all, or exhibit unintended behavior (<a href="https://en.wikipedia.org/wiki/Reward_hacking">reward hacking</a>). This is where you come in: in this environment, <b><i>you</i></b> are the reward function. If you see Ms. Pac-Man do something good, press one of the green buttons to reinforce that behavior by giving the agent a positive reward. Conversely, if she does something bad, give a negative reward with one of the red buttons. Of course, the meanings of "good" and "bad" are subjective, so you will have to synergize your inputs with other users who are supplying their own reward signals.</p> 
+            </div>
+            <h1 class="faqhead">FAQs</h1>
+            <div class="faq">
+                <details>
+                    <summary>I pressed the reward buttons and nothing happened. Why doesn't it work?</summary>
+                    Reinforcement learning is a slow process. Depending on the application, RL algorithms can take on the order of millions of time steps to coverge to an optimal policy. If you see green or red circles appearing above Ms. Pac-Man, that means that either you or another user has supplied a reward signal, and it has been incorporated into the algorithm's transition buffer. You may not see the agent react to your inputs right away, but it is gradually learning from them.
+                </details>
+                <details>
+                    <summary>Which RL algorithm is being used?</summary>
+                    The agent uses <a href="https://doi.org/10.48550/arXiv.1312.5602">Deep Q-Networks (DQN)</a>, the first RL algorithm to successfully learn how to play a wide range of Atari games. Since then, many newer and improved algorithms have been created, but this is a classic approach and works reasonably well. It works by approximating a Q-function (value function) with a neural network that maps states and actions to a Q-value; in a greedy policy, the action with the highest Q-value is the one that the agent should take.
+                </details>
+                <details>
+                    <summary>Does the agent still receive automatic rewards from its environment?</summary>
+                    Yes. When Ms. Pac-Man eats a pellet, the agent receives +1 reward. When she gets eaten by a ghost, it receives -1 reward. This allows the agent to continue learning even when there is no human supervision to provide guidance.
+                </details>
+                <details>
+                    <summary>Where's Pinky, Inky, and Clyde?</summary>
+                    This environment features only one ghost (and no power pellets, which would allow Ms. Pac-Man to eat the ghosts) as a simplification measure. In the future, if the agent is able to successfully complete the level, a full Pac-Man game faithful to the original may be implemented.
+                </details>
+                <details>
+                    <summary>Is this the same as RLHF?</summary>
+                    <a href="https://en.wikipedia.org/wiki/Reinforcement_learning_from_human_feedback">RLHF</a> (Reinforcement learning from human feedback) is famously known as the technique used to align ChatGPT and other large langauge models. With RLHF, the agent provides a series of outputs for a given input, and human labelers indicate which one they prefer after the fact. Although the Pac-Man environment here incorporates human feedback into the algorithm, it is not RLHF. Rather, in this method human feedback augments the learning process in real-time from an arbitrary number of concurrent users. 
+                </details>
             </div>
         </div>
     </div>
+    <footer>
+        More questions? Contact: <a href="mailto: daltonv297@gmail.com">daltonv297@gmail.com</a>
+    </footer>
 </body>
 </html>
