@@ -300,6 +300,13 @@ def optimize_model():
     # policy_net.load_state_dict(torch.load(os.path.join('training_backend', 'models', pretrain_checkpoint), map_location=torch.device('cpu')))
     target_net.load_state_dict(policy_net.state_dict())
 
+    # initialize lazy modules with a dummy batch
+    with torch.no_grad():
+        init_tensor = torch.zeros(1, *state_dim, device=device)
+        policy_net(init_tensor)
+        target_net(init_tensor)
+
+
     buffer_policy_net = io.BytesIO()
     torch.save(policy_net.state_dict(), buffer_policy_net)
     buffer_policy_net.seek(0)
